@@ -93,20 +93,20 @@
                 }
             ]
         },
-        "Ollama": {
-            "name": "Ollama",
-            "url": "http://localhost:11434",
-            "key": "",
+        "ZhiPu": {
+            "name": "ZhiPu",
+            "url": "https://open.bigmodel.cn",
+            "key": "12fd15403c314b5bbff82329e51e0487.Eg3uGUNX9FPY90ez",
             "models": [
-                {
-                    "id": "llama3.2:latest",
-                    "object": "model",
-                    "created": 1739120925,
-                    "owned_by": "library",
-                    "name": "llama3.2:latest",
-                    "endpoints": [],
-                    "options": {}
-                }
+                { "id": "glm-4", "name": "glm-4", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-0520", "name": "glm-4-0520", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-air", "name": "glm-4-air", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-airx", "name": "glm-4-airx", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-flash", "name": "glm-4-flash", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-plus", "name": "glm-4-plus", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-long", "name": "glm-4-long", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "glm-4-alltools", "name": "glm-4-alltools", "object": "model", "endpoints": [1], "options": {} },
+                { "id": "cogview-3", "name": "cogview-3", "object": "model", "endpoints": [2], "options": {} }
             ]
         }
     },
@@ -158,6 +158,15 @@
             "provider": "Deepseek",
             "name": "Deepseek [deepseek-chat]",
             "id": "deepseek-chat"
-        }
+        },
+        { "id": "glm-4", "name": "ZhiPu [glm-4]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-0520", "name": "ZhiPu [glm-4-0520]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-air", "name": "ZhiPu [glm-4-air]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-airx", "name": "ZhiPu [glm-4-airx]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-flash", "name": "ZhiPu [glm-4-flash]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-plus", "name": "ZhiPu [glm-4-plus]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-long", "name": "ZhiPu [glm-4-long]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "glm-4-alltools", "name": "ZhiPu [glm-4-alltools]", "provider": "ZhiPu", "capabilities": 1 },
+        { "id": "cogview-3", "name": "ZhiPu [cogview-3]", "provider": "ZhiPu", "capabilities": 2 }
     ]
 }

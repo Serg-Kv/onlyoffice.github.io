@@ -1,28 +1,27 @@
 {
-	"name" : "AI",
+	"name" : "AI 2",
 	"nameLocale": {
-		"ru": "ИИ",
-		"fr": "AI",
-		"es": "AI",
-		"de": "AI",
-		"cs": "AI",
-		"zh": "AI",
-		"pt-BR": "AI",
-		"sr-Cyrl-RS": "AI",
-		"sr-Latn-RS": "AI",
-		"ja-JA": "AI",
-		"sq-AL": "AI",
-		"it": "IA",
-		"ar-SA": "AI"
+		"ru": "ИИ 2",
+		"fr": "AI 2",
+		"es": "AI 2",
+		"de": "AI 2",
+		"cs": "AI 2",
+		"zh": "AI 2",
+		"pt-BR": "AI 2",
+		"sr-Cyrl-RS": "AI 2",
+		"sr-Latn-RS": "AI 2",
+		"ja-JA": "AI 2",
+		"sq-AL": "AI 2",
+		"it": "IA 2"
 	},
 
-	"guid" : "asc.{9DC93CDB-B576-4F0C-B55E-FCC9C48DD007}",
-	"version": "2.2.9",
+	"guid" : "asc.{9DC93CDB-B576-4F0C-B55E-FCC9C48DD008}",
+	"version": "2.2.8",
 	"minVersion" : "8.2.0",
 
 	"variations" : [
 		{
-			"description": "Use the AI chatbot to perform tasks which involve understanding or generating natural language or code.",
+			"description": "Use the AI 2 chatbot to perform tasks which involve understanding or generating natural language or code.",
 			"descriptionLocale": {
 				"ru": "Используйте чат-бот AI для выполнения задач, связанных с пониманием или генерацией естественного языка или кода.",
 				"fr": "Utilisez le chatbot AI pour effectuer des tâches qui impliquent la compréhension ou la génération de langage naturel ou de code.",
@@ -35,8 +34,7 @@
 				"sr-Latn-RS": "Koristite AI čet robota za obavljanje zadataka koji uključuju razumevanje ili generisanje prirodnog jezika ili koda.",
 				"ja-JA": "自然言語やコードの理解または生成が必要なタスクを行うには、AIチャットボットを使用できます。",
 				"sq-AL": "Shtoni dhe selektoni modele AI për detyra të ndryshme.",
-				"it": "Utilizza il chatbot dell'IA per eseguire attività che implicano la comprensione o la generazione di codice o linguaggio naturale.",
-				"ar-SA": "استخدموا روبوت المحادثة الذكي لتنفيذ المهام التي تتطلب فهمًا أو إنتاجًا للغة الطبيعية أو البرمجة."
+				"it": "Utilizza il chatbot dell'IA per eseguire attività che implicano la comprensione o la generazione di codice o linguaggio naturale."
 			},
 
 			"url"         : "index.html",
@@ -48,7 +46,7 @@
 			"type"                : "background",
 			"initDataType"        : "none",
 			"buttons"             : [],
-			"events"			  : ["onAIPluginSettings", "onContextMenuShow", "onContextMenuClick", "onToolbarMenuClick"],
+			"events"			  : ["onContextMenuShow", "onContextMenuClick", "onToolbarMenuClick"],
 
 			"store": {
 				"background": {
