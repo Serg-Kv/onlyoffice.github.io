@@ -1,18 +1,18 @@
 {
-	"name" : "AI 2",
+	"name" : "AI",
 	"nameLocale": {
-		"ru": "ИИ 2",
-		"fr": "AI 2",
-		"es": "AI 2",
-		"de": "AI 2",
-		"cs": "AI 2",
-		"zh": "AI 2",
-		"pt-BR": "AI 2",
-		"sr-Cyrl-RS": "AI 2",
-		"sr-Latn-RS": "AI 2",
-		"ja-JA": "AI 2",
-		"sq-AL": "AI 2",
-		"it": "IA 2"
+		"ru": "ИИ",
+		"fr": "AI",
+		"es": "AI",
+		"de": "AI",
+		"cs": "AI",
+		"zh": "AI",
+		"pt-BR": "AI",
+		"sr-Cyrl-RS": "AI",
+		"sr-Latn-RS": "AI",
+		"ja-JA": "AI",
+		"sq-AL": "AI",
+		"it": "IA"
 	},
 
 	"guid" : "asc.{9DC93CDB-B576-4F0C-B55E-FCC9C48DD008}",
