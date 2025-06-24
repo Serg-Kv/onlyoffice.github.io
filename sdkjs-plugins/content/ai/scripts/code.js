@@ -1,35 +1,3 @@
-/*
- * (c) Copyright Ascensio System SIA 2010-2025
- *
- * This program is a free software product. You can redistribute it and/or
- * modify it under the terms of the GNU Affero General Public License (AGPL)
- * version 3 as published by the Free Software Foundation. In accordance with
- * Section 7(a) of the GNU AGPL its Section 15 shall be amended to the effect
- * that Ascensio System SIA expressly excludes the warranty of non-infringement
- * of any third-party rights.
- *
- * This program is distributed WITHOUT ANY WARRANTY; without even the implied
- * warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR  PURPOSE. For
- * details, see the GNU AGPL at: http://www.gnu.org/licenses/agpl-3.0.html
- *
- * You can contact Ascensio System SIA at 20A-6 Ernesta Birznieka-Upish
- * street, Riga, Latvia, EU, LV-1050.
- *
- * The  interactive user interfaces in modified source and object code versions
- * of the Program must display Appropriate Legal Notices, as required under
- * Section 5 of the GNU AGPL version 3.
- *
- * Pursuant to Section 7(b) of the License you must retain the original Product
- * logo when distributing the program. Pursuant to Section 7(e) we decline to
- * grant you any rights under trademark law for use of our trademarks.
- *
- * All the Product's GUI elements, including illustrations and icon sets, as
- * well as technical writing content are licensed under the terms of the
- * Creative Commons Attribution-ShareAlike 4.0 International. See the License
- * terms at http://creativecommons.org/licenses/by-sa/4.0/legalcode
- *
- */
-
 let settingsWindow = null;
 let aiModelsListWindow = null; 
 let aiModelEditWindow = null;
@@ -38,9 +6,9 @@ let summarizationWindow = null;
 let translateSettingsWindow = null;
 
 let initCounter = 0;
-async function initWithTranslate(counter) {
-	initCounter |= counter;
-	if (3 === initCounter) {
+async function initWithTranslate() {
+	initCounter++;
+	if (2 === initCounter) {
 		registerButtons(window);
 		Asc.Buttons.registerContextMenu();
 		Asc.Buttons.registerToolbarMenu();
@@ -123,121 +91,116 @@ async function GetOldCustomFunctions() {
 }
 
 window.Asc.plugin.init = async function() {
-	// Check server settings
-	if (window.Asc.plugin.info.aiPluginSettings) {
-		try {
-			AI.serverSettings = JSON.parse(window.Asc.plugin.info.aiPluginSettings);
-		} catch (e) {
-			AI.serverSettings = null;
-		}
-		delete window.Asc.plugin.info.aiPluginSettings;
-	}
-
-	await initWithTranslate(1 << 1);
+	await initWithTranslate();
 	clearChatState();
-
-	let editorVersion = await Asc.Library.GetEditorVersion();
-	if (editorVersion >= 9000000) {
-		window.Asc.plugin.attachEditorEvent("onAIRequest", async function(params){
-			let data = {};
-			switch (params.type) {
-				case "text":
-				{
-					let requestEngine = AI.Request.create(AI.ActionType.Chat);
-					if (requestEngine)
+	try {
+		console.log("ZhiPu plugin init started");
+		let editorVersion = await Asc.Library.GetEditorVersion();
+		if (editorVersion >= 9000000) {
+			window.Asc.plugin.attachEditorEvent("onAIRequest", async function(params){
+				let data = {};
+				switch (params.type) {
+					case "text":
 					{
-						let result = await requestEngine.chatRequest(params.data);
-						if (!result) result = "";
+						let requestEngine = AI.Request.create(AI.ActionType.Chat);
+						if (requestEngine)
+						{
+							let result = await requestEngine.chatRequest(params.data);
+							if (!result) result = "";
 
-						data.type = "text";
-						data.text = result;
+							data.type = "text";
+							data.text = result;
+						}
+						else
+						{
+							data.type = "no-engine";
+							data.text = "";
+							data.error = "No model selected for chat action..."
+						}
 					}
-					else
-					{
-						data.type = "no-engine";
-						data.text = "";
-						data.error = "No model selected for chat action..."
-					}
+					default:
+						break;
 				}
-				default:
-					break;
-			}
 
-			await Asc.Editor.callMethod("onAIRequest", [data]);
-		});
+				await Asc.Editor.callMethod("onAIRequest", [data]);
+			});
 
-		if ("cell" === window.Asc.plugin.info.editorType) {
-			let AIFunc = {
-				guid : "e8ea2fb288054deaa6b82158c04dee37",
-				name : "AI",
-				value : "\
-(function()\n\
-{\n\
-    /**\n\
-     * Function that returns the AI answer.\n\
-     * @customfunction\n\
-     * @param {string} value Prompt.\n\
-     * @param {?boolean} isSaveAIFunction Indicator whether the AI function should be saved.\n\
-     * @returns {string} Answer value.\n\
-     */\n\
-    async function AI(value, isSaveAIFunction) {\n\
-        let systemMessage = \"As an Excel formula expert, your job is to provide advanced Excel formulas that perform complex calculations or data manipulations as described by the user. Keep your answers as brief as possible. If the user asks for formulas, return only the formula. If the user asks for something, answer briefly and only the result, without descriptions or reflections. If you received a request that is not based on Excel formulas, then simply answer the text request as briefly as possible, without descriptions or reflections\";\n\
-        return new Promise(resolve => (function(){\n\
-            Api.AI({ type : \"text\", data : [{role: \"system\", content: systemMessage}, {role:\"user\", content: value}] }, function(data){\n\
-                if (data.error)\n\
-                    return resolve(data.error);\n\
-                switch (data.type) {\n\
-                    case \"text\":\n\
-                    {\n\
-                        let result = data.text.trim();\n\
-                        if (isSaveAIFunction !== true)\n\
-                            result = \"@@\" + result;\n\
-                        resolve(result);\n\
-                        break;\n\
-                    }\n\
-                    default:\n\
-                    {\n\
-                        resolve(\"#ERROR\");\n\
-                    }\n\
-                }\n\
-                resolve(data)\n\
-            });\n\
-        })());\n\
-    }\n\
-    Api.AddCustomFunction(AI);\n\
-})();"
-			};
+			if ("cell" === window.Asc.plugin.info.editorType) {
+				let AIFunc = {
+					guid : "e8ea2fb288054deaa6b82158c04dee37",
+					name : "AI",
+					value : "\
+	(function()\n\
+	{\n\
+		/**\n\
+		 * Function that returns the AI answer.\n\
+		 * @customfunction\n\
+		 * @param {string} value Prompt.\n\
+		 * @param {?boolean} isSaveAIFunction Indicator whether the AI function should be saved.\n\
+		 * @returns {string} Answer value.\n\
+		 */\n\
+		async function AI(value, isSaveAIFunction) {\n\
+			let systemMessage = \"As an Excel formula expert, your job is to provide advanced Excel formulas that perform complex calculations or data manipulations as described by the user. Keep your answers as brief as possible. If the user asks for formulas, return only the formula. If the user asks for something, answer briefly and only the result, without descriptions or reflections. If you received a request that is not based on Excel formulas, then simply answer the text request as briefly as possible, without descriptions or reflections\";\n\
+			return new Promise(resolve => (function(){\n\
+				Api.AI({ type : \"text\", data : [{role: \"system\", content: systemMessage}, {role:\"user\", content: value}] }, function(data){\n\
+					if (data.error)\n\
+						return resolve(data.error);\n\
+					switch (data.type) {\n\
+						case \"text\":\n\
+						{\n\
+							let result = data.text.trim();\n\
+							if (isSaveAIFunction !== true)\n\
+								result = \"@@\" + result;\n\
+							resolve(result);\n\
+							break;\n\
+						}\n\
+						default:\n\
+						{\n\
+							resolve(\"#ERROR\");\n\
+						}\n\
+					}\n\
+					resolve(data)\n\
+				});\n\
+			})());\n\
+		}\n\
+		Api.AddCustomFunction(AI);\n\
+	})();"
+				};
 
-			let oldCF = await GetOldCustomFunctions();
-			let isFound = false;
-			let isUpdate = false;
+				let oldCF = await GetOldCustomFunctions();
+				let isFound = false;
+				let isUpdate = false;
 
-			for (let i = 0, len = oldCF.macrosArray.length; i < len; i++) {
-				let item = oldCF.macrosArray[i];
-				if (item.name === AIFunc.name) {
-					isFound = true;
+				for (let i = 0, len = oldCF.macrosArray.length; i < len; i++) {
+					let item = oldCF.macrosArray[i];
+					if (item.name === AIFunc.name) {
+						isFound = true;
 
-					if (item.guid === AIFunc.guid) {
-						if (item.value !== AIFunc.value) {
-							isUpdate = true;
-							item.value = AIFunc.value;
+						if (item.guid === AIFunc.guid) {
+							if (item.value !== AIFunc.value) {
+								isUpdate = true;
+								item.value = AIFunc.value;
+							}
 						}
 					}
 				}
-			}
-			if (!isFound) {
-				oldCF.macrosArray.push(AIFunc);
-				isUpdate = true;
-			}
+				if (!isFound) {
+					oldCF.macrosArray.push(AIFunc);
+					isUpdate = true;
+				}
 
-			if (isUpdate)
-				await Asc.Editor.callMethod("SetCustomFunctions", [JSON.stringify(oldCF)]);
-		}		
+				if (isUpdate)
+					await Asc.Editor.callMethod("SetCustomFunctions", [JSON.stringify(oldCF)]);
+			}		
+		}
+	} catch (e) {
+		console.error("Init failed:", e);
+		throw new Error("Problem with plugin installation");
 	}	
 };
 
 window.Asc.plugin.onTranslate = async function() {
-	await initWithTranslate(1);
+	await initWithTranslate();
 };
 
 window.Asc.plugin.button = function(id, windowId) {
@@ -331,11 +294,6 @@ function onOpenSettingsModal() {
 		settingsWindow.attachEvent("onInit", function() {
 			updateActions();
 			updateModels();
-		});
-		settingsWindow.attachEvent("onUpdateHeight", function(height) {
-			if(height > variation.size[1]) {
-				Asc.Editor.callMethod("ResizeWindow", [settingsWindow.id, [variation.size[0] - 2, height]]);	//2 is the border-width at the window
-			}
 		});
 		settingsWindow.attachEvent('onChangeAction', function(data){
 			AI.ActionsChange(data.id, data.model);
