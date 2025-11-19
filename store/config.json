@@ -36,5 +36,9 @@
 	{ "name": "pomodoro", "discussion": "" },
 	{ "name": "videoembedder", "discussion": "" },
 	{ "name": "mathtype", "discussion": "" },
-	{ "name": "mathpix", "discussion": "" }
+	{ "name": "mathpix", "discussion": "" },
+	{ "name": "datepicker", "discussion": "" },
+	{ "name": "news", "discussion": "" },
+	{ "name": "textcleaner", "discussion": "" },
+	{ "name": "texthighlighter", "discussion": "" }
 ]

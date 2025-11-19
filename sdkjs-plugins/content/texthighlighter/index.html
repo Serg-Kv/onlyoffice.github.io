@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
+  <script src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@simonwep/pickr/dist/themes/classic.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@simonwep/pickr"></script>
+
+
+  <script src="./scripts/code.js" defer></script>
+</head>
+
+<body>
+  <div class="container scrollable">
+
+    <div class="header" id="PluginInstructions"></div>
+
+    <!-- STATE 1: Input + Apply -->
+    <div id="state-input">
+      <div class="section">
+        <label id="TextToSearch"></label>
+        <input type="text" id="searchText" placeholder="" />
+      </div>
+
+      <div class="section">
+        <label>
+          <input type="checkbox" id="ignoreCase" checked />
+          <span id="IgnoreCase"></span>
+        </label>
+      </div>
+
+      <div class="section">
+        <label id="HighlightColor"></label>
+        <select id="highlightColor">
+          <option value="yellow" id="HighlightYellow"></option>
+          <option value="green" id="HighlightGreen"></option>
+          <option value="blue" id="HighlightBlue"></option>
+          <option value="red" id="HighlightRed"></option>
+          <option value="none" id="HighlightNone"></option>
+        </select>
+      </div>
+
+      <!-- Text Color dropdown -->
+      <div class="dropdown">
+        <div class="dropdown-header" id="TextColorHeader">
+          <span class="arrow" id="ArrowDropdown"></span>
+        </div>
+        <div class="dropdown-content" id="TextColorContent">
+          <div id="textColorPicker"></div>
+        </div>
+      </div>
+
+      <!-- Text Formatting dropdown -->
+      <div class="dropdown">
+        <div class="dropdown-header" id="TextFormattingHeader">
+          <span class="arrow" style="color: #666;"></span>
+        </div>
+        <div class="dropdown-content format-options" id="TextFormattingContent">
+          <label><input type="checkbox" id="boldCheckbox" /> <span id="FormatBold"></span></label>
+          <label><input type="checkbox" id="italicCheckbox" /> <span id="FormatItalic"></span></label>
+          <label><input type="checkbox" id="underlineCheckbox" /> <span id="FormatUnderline"></span></label>
+          <label><input type="checkbox" id="strikeCheckbox" /> <span id="FormatStrike"></span></label>
+        </div>
+      </div>
+
+      <button id="ApplyButton" class="applyButton"></button>
+    </div>
+
+    <!-- STATE 2: No matches -->
+    <div id="state-no-results" style="display:none">
+      <p id="SearchNoResults"></p>
+      <button id="HighlightMore1"></button>
+    </div>
+
+    <!-- STATE 3: Done / Matches found -->
+    <div id="state-done" style="display:none">
+      <p id="SearchDone"></p>
+      <p><span id="MatchesFound"></span> <span id="foundCount"></span></p>
+      <button id="RevertToOriginal"></button>
+      <button id="HighlightMore2"></button>
+    </div>
+
+    <div id="loader" style="display:none; text-align:center; font-style:italic; color:#666;">
+      <span id="LoadingMessage"></span>
+    </div>
+  </div>
+</body>
+
+</html>
