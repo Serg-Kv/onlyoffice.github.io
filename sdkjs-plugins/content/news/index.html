@@ -15,6 +15,14 @@
       rel="stylesheet"
       href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css"
     />
+    <link rel="stylesheet" href="resources/style/light-theme.css" id="theme-style">
+    <style>
+      body {
+        visibility: hidden;
+        opacity: 0;
+        transition: opacity 0.2s ease-in-out;
+      }
+    </style>
     <!-- Load modules in dependency order -->
     <script type="text/javascript" src="scripts/providers.js"></script>
     <script type="text/javascript" src="scripts/storage.js"></script>
@@ -28,8 +36,7 @@
     <div id="api-setup" class="setup-screen">
       <div class="setup-header">
         <p id="description-text">
-          Search through millions of articles from over 80,000 large and small
-          news sources and blogs.
+        
         </p>
       </div>
 

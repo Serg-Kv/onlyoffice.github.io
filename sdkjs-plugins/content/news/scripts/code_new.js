@@ -19,11 +19,13 @@
       savedProvider = window.GNewsStorage.loadProvider();
       window.GNewsAPI.setProvider(savedProvider);
       window.NewsProviders.setProvider(savedProvider);
+      console.log("Loaded provider:", savedProvider);
 
       // Load saved API key
       savedApiKey = window.GNewsStorage.loadApiKey();
       if (savedApiKey) {
         window.GNewsAPI.setApiKey(savedApiKey);
+        console.log("Loaded API key from storage");
       }
 
       // Initialize UI after a short delay
@@ -55,25 +57,34 @@
    * Handle theme changes
    */
   window.Asc.plugin.onThemeChanged = function (theme) {
-    const head = document.getElementsByTagName("head")[0];
+    let link = document.getElementById("theme-style");
 
-    const existingLink = document.querySelector('link[href*="theme.css"]');
-    if (existingLink) {
-      existingLink.remove();
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.type = "text/css";
+      link.media = "all";
+      link.id = "theme-style";
+      document.head.appendChild(link);
     }
-
-    const link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.media = "all";
 
     if (theme.type === "dark") {
-      link.href = "./resources/style/dark-theme.css";
+      link.href = "resources/style/dark-theme.css";
     } else {
-      link.href = "./resources/style/light-theme.css";
+      link.href = "resources/style/light-theme.css";
     }
 
-    head.appendChild(link);
+    // Reveal body after theme is applied
+    const revealBody = function () {
+      document.body.style.visibility = "visible";
+      document.body.style.opacity = "1";
+    };
+
+    if (document.body) {
+      revealBody();
+    } else {
+      window.addEventListener("DOMContentLoaded", revealBody);
+    }
   };
 
   /**
@@ -209,6 +220,7 @@
     window.GNewsStorage.saveProvider(newProvider);
     window.GNewsUI.currentProvider = newProvider;
     window.GNewsUI.updateProviderInfo();
+
     
     // Clear API key since different providers need different keys
     if (savedApiKey) {
