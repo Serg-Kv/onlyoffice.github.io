@@ -46,6 +46,8 @@
     "AboutTitle": "文本清理器",
     "AboutVersion": "版本 1.0.0",
     "AboutDescription": "该插件帮助您通过多种选项清理和格式化文档中的文本。您可以轻松删除多余空格，修正标点符号，并执行许多其他功能。",
-    "AboutCopyright": "© 2025 ONLYOFFICE 插件"
+    "AboutCopyright": "© 2025 ONLYOFFICE 插件",
+    "Loading": "加载中...",
+    "About": "关于"
   }
   

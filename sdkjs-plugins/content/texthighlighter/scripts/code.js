@@ -257,43 +257,54 @@
   };
 
   // 6) Translation hookup
-  window.Asc.plugin.onTranslate = () => {
+  
+window.Asc.plugin.onTranslate = function () {
+  const ids = [
+    "PluginInstructions",
+    "TextToSearch",
+    "IgnoreCase",
+    "HighlightColor",
+    "HighlightYellow",
+    "HighlightGreen",
+    "HighlightBlue",
+    "HighlightRed",
+    "HighlightNone",
+    "TextColorHeader",
+    "TextFormattingHeader",
+    "FormatBold",
+    "FormatItalic",
+    "FormatUnderline",
+    "FormatStrike",
+    "ApplyButton",
+    "SearchNoResults",
+    "SearchDone",
+    "MatchesFound",
+    "HighlightMore1",
+    "HighlightMore2",
+    "RevertToOriginal",
+    "LoadingMessage"
+  ];
 
-    const map = {
-      PluginInstructions: "PluginInstructions",
-      TextToSearch: "TextToSearch",
-      IgnoreCase: "IgnoreCase",
-      HighlightColor: "HighlightColor",
-      HighlightYellow: "HighlightYellow",
-      HighlightGreen: "HighlightGreen",
-      HighlightBlue: "HighlightBlue",
-      HighlightRed: "HighlightRed",
-      HighlightNone: "HighlightNone",
-      TextColorHeader: "TextColorHeader",
-      ArrowDropdown: "ArrowDropdown",
-      TextFormattingHeader: "TextFormattingHeader",
-      FormatBold: "FormatBold",
-      FormatItalic: "FormatItalic",
-      FormatUnderline: "FormatUnderline",
-      FormatStrike: "FormatStrike",
-      ApplyButton: "ApplyButton",
-      RevertToOriginal: "RevertToOriginal",
-      SearchNoResults: "SearchNoResults",
-      HighlightMore1: "HighlightMore",
-      HighlightMore2: "HighlightMore",
-      SearchDone: "SearchDone",
-      MatchesFound: "MatchesFound",
-      LoadingMessage: "LoadingMessage"
-    };
-
-    for (const id in map) {
-      const el = document.getElementById(id);
-      if (el) el.innerHTML = window.Asc.plugin.tr(map[id]);
+  ids.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      const translated = window.Asc.plugin.tr(id);
+      // If translation exists and is different from key itself → apply, else keep default English text
+      if (translated && translated !== id) {
+        el.innerHTML = translated;
+      }
     }
+  });
 
-    const searchInput = document.getElementById("searchText");
-    if (searchInput) searchInput.placeholder = window.Asc.plugin.tr("SearchPlaceholder");
-  };
+  const input = document.getElementById("searchText");
+  if (input) {
+    const ph = window.Asc.plugin.tr("SearchPlaceholder");
+    if (ph && ph !== "SearchPlaceholder") {
+      input.placeholder = ph;
+    }
+  }
+};
+
 
 
 })(window);

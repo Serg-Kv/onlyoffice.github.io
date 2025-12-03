@@ -46,5 +46,7 @@
   "AboutTitle": "Text Cleaner",
   "AboutVersion": "Version 1.0.0",
   "AboutDescription": "This plugin helps you clean and format text in your document with various options. You can easily remove extra spaces, fix punctuation marks, and perform many other functions.",
-  "AboutCopyright": "© 2025 ONLYOFFICE Plugin"
-} 
+  "AboutCopyright": "© 2025 ONLYOFFICE Plugin",
+  "Loading": "Loading...",
+  "About": "About"
+}

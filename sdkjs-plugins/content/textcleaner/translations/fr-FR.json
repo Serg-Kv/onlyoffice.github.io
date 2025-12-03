@@ -46,6 +46,8 @@
     "AboutTitle": "Nettoyeur de Texte",
     "AboutVersion": "Version 1.0.0",
     "AboutDescription": "Ce plugin vous aide à nettoyer et formater le texte de votre document avec diverses options. Vous pouvez facilement supprimer les espaces en trop, corriger la ponctuation et effectuer de nombreuses autres fonctions.",
-    "AboutCopyright": "© 2025 Plugin ONLYOFFICE"
+    "AboutCopyright": "© 2025 Plugin ONLYOFFICE",
+    "Loading": "Chargement...",
+    "About": "À propos"
   }
   

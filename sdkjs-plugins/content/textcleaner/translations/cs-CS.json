@@ -46,6 +46,8 @@
     "AboutTitle": "Čistič Textu",
     "AboutVersion": "Verze 1.0.0",
     "AboutDescription": "Tento plugin vám pomůže vyčistit a formátovat text v dokumentu s různými možnostmi. Snadno odstraníte nadbytečné mezery, opravíte interpunkci a provedete mnoho dalších funkcí.",
-    "AboutCopyright": "© 2025 ONLYOFFICE Plugin"
+    "AboutCopyright": "© 2025 ONLYOFFICE Plugin",
+    "Loading": "Načítání...",
+    "About": "O programu"
   }
   

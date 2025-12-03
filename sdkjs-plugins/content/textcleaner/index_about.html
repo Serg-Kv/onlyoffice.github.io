@@ -5,6 +5,7 @@
   <title>About</title>
   <script type="text/javascript" src="../v1/plugins.js"></script>
   <script type="text/javascript" src="../v1/plugins-ui.js"></script>
+  <script type="text/javascript" src="../v1/translations.js"></script>
   <link rel="stylesheet" href="../v1/plugins.css">
   <style>
     body {
@@ -45,28 +46,44 @@
 </head>
 <body>
   <div class="container">
-    <div class="title" id="about-title"></div>
-    <div class="version" id="about-version"></div>
+    <div class="title" id="about-title">Text Cleaner</div>
+    <div class="version" id="about-version">Version 1.0.0</div>
     <div class="description" id="about-description">
-     
+      This plugin helps you clean and format text in your document with various options. You can easily remove extra spaces, fix punctuation marks, and perform many other functions.
     </div>
-    <div class="copyright" id="about-copyright"></div>
+    <div class="copyright" id="about-copyright">
+      © 2025 ONLYOFFICE Plugin
+    </div>
   </div>
   <script>
-    let translations = {};
-    let currentLang = 'en-US';
-
-    function loadTranslations(lang) {
-      fetch(`translations/${lang}.json`)
-        .then(response => response.json())
-        .then(data => {
-          translations = data;
-          updateTexts();
-        })
-        .catch(error => {
-          console.warn(`Translation file for ${lang} not found, using default language`);
-        });
-    }
+    const tr = key => {
+      try {
+        if (window.Asc && window.Asc.plugin && typeof window.Asc.plugin.tr === 'function') {
+          const translation = window.Asc.plugin.tr(key);
+          
+          if (translation && translation !== key) {
+            return translation;
+          }
+          
+          return getEnglishFallback(key);
+        }
+      } catch (e) {
+        console.log('Translation function failed, using fallback:', e);
+      }
+      
+      return getEnglishFallback(key);
+    };
+    
+    const getEnglishFallback = key => {
+        const englishTranslations = {
+            "AboutTitle": "Text Cleaner",
+            "AboutVersion": "Version 1.0.0",
+            "AboutDescription": "This plugin helps you clean and format text in your document with various options. You can easily remove extra spaces, fix punctuation marks, and perform many other functions.",
+            "AboutCopyright": "© 2025 ONLYOFFICE Plugin"
+        };
+        
+        return englishTranslations[key] || key;
+    };
 
     function updateTexts() {
       const titleElement = document.getElementById('about-title');
@@ -74,26 +91,18 @@
       const descriptionElement = document.getElementById('about-description');
       const copyrightElement = document.getElementById('about-copyright');
 
-      if (translations.AboutTitle) {
-        titleElement.textContent = translations.AboutTitle;
-      }
-      if (translations.AboutVersion) {
-        versionElement.textContent = translations.AboutVersion;
-      }
-      if (translations.AboutDescription) {
-        descriptionElement.textContent = translations.AboutDescription;
-      }
-      if (translations.AboutCopyright) {
-        copyrightElement.textContent = translations.AboutCopyright;
-      }
+      if (titleElement) titleElement.textContent = tr('AboutTitle');
+      if (versionElement) versionElement.textContent = tr('AboutVersion');
+      if (descriptionElement) descriptionElement.textContent = tr('AboutDescription');
+      if (copyrightElement) copyrightElement.textContent = tr('AboutCopyright');
     }
 
     window.Asc.plugin.init = function() {
-      if (window.Asc.plugin.info && window.Asc.plugin.info.lang) {
-        currentLang = window.Asc.plugin.info.lang;
-      }
-      
-      loadTranslations(currentLang);
+      updateTexts();
+    };
+
+    window.Asc.plugin.onTranslate = function() {
+      updateTexts();
     };
 
     window.Asc.plugin.button = function(id) {

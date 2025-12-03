@@ -46,6 +46,8 @@
     "AboutTitle": "Limpiador de Texto",
     "AboutVersion": "Versión 1.0.0",
     "AboutDescription": "Este complemento le ayuda a limpiar y formatear el texto en su documento con varias opciones. Puede eliminar fácilmente espacios adicionales, corregir la puntuación y realizar muchas otras funciones.",
-    "AboutCopyright": "© 2025 Complemento ONLYOFFICE"
+    "AboutCopyright": "© 2025 Complemento ONLYOFFICE",
+    "Loading": "Cargando...",
+    "About": "Acerca de"
   }
   

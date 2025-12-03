@@ -46,5 +46,7 @@
   "AboutTitle": "Metin Temizleyici",
   "AboutVersion": "Sürüm 1.0.0",
   "AboutDescription": "Bu eklenti, belgenizdeki metni çeşitli seçeneklerle temizlemenize ve biçimlendirmenize yardımcı olur. Fazla boşlukları kolayca kaldırabilir, noktalama işaretlerini düzeltebilir ve birçok başka işlev gerçekleştirebilirsiniz.",
-  "AboutCopyright": "© 2025 ONLYOFFICE Eklentisi"
+  "AboutCopyright": "© 2025 ONLYOFFICE Eklentisi",
+  "Loading": "Yükleniyor...",
+  "About": "Hakkında"
 } 

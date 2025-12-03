@@ -46,6 +46,8 @@
     "AboutTitle": "Removedor de Texto",
     "AboutVersion": "Versão 1.0.0",
     "AboutDescription": "Este plugin ajuda você a limpar e formatar o texto no seu documento com várias opções. Você pode facilmente remover espaços extras, corrigir pontuação e realizar muitas outras funções.",
-    "AboutCopyright": "© 2025 Plugin ONLYOFFICE"
+    "AboutCopyright": "© 2025 Plugin ONLYOFFICE",
+    "Loading": "Carregando...",
+    "About": "Sobre"
   }
   

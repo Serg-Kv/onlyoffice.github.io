@@ -63,15 +63,12 @@
 
     function getThemeIcon() {
         try {
-            // OnlyOffice tema API'si varsa kullan
             if (window.Asc && window.Asc.plugin && window.Asc.plugin.info && window.Asc.plugin.info.theme) {
                 const theme = window.Asc.plugin.info.theme;
                 return theme.type === 'dark' ? 'resources/dark/icon.svg' : 'resources/light/icon.svg';
             }
             
-            // DOM hazır olup olmadığını kontrol et
             if (document && document.body) {
-                // Alternatif: CSS variable veya body class kontrolü
                 const isDark = document.body.classList.contains('theme-dark') || 
                               getComputedStyle(document.documentElement).getPropertyValue('--theme-type') === 'dark';
                 
@@ -81,13 +78,76 @@
             console.log('Theme detection failed, using light theme icon');
         }
         
-        // Fallback: light tema
+        
         return 'resources/light/icon.svg';
     }
 
     // Utility functions
     const $ = id => document.getElementById(id);
-    const tr = key => window.Asc.plugin.tr ? window.Asc.plugin.tr(key) : key;
+    
+    // Improved translation function that falls back to English for unsupported languages
+    const tr = key => {
+        try {
+            if (window.Asc && window.Asc.plugin && typeof window.Asc.plugin.tr === 'function') {
+                const translation = window.Asc.plugin.tr(key);
+                
+                
+                if (translation && translation !== key) {
+                    return translation;
+                }
+                
+                
+                return getEnglishFallback(key);
+            }
+        } catch (e) {
+            console.log('Translation function failed, using fallback:', e);
+        }
+        
+        return getEnglishFallback(key);
+    };
+    
+    // English fallback translations for unsupported languages
+    const getEnglishFallback = key => {
+        const englishTranslations = {
+            "TextCleaner": "Text Cleaner",
+            "AllParameters": "All parameters",
+            "ClearFormatting": "Clear Formatting",
+            "clean-button": "Clean",
+            "PluginInstructions": "Select a section of text to clear its formatting, or click <b>Clean</b> to clear formatting in the entire document.",
+            "RemoveBold": "Remove bold",
+            "RemoveItalic": "Remove italic",
+            "RemoveUnderline": "Remove underline",
+            "RemoveStrikeout": "Remove strikethrough",
+            "ClearTextColor": "Clear text color",
+            "RemoveHighlight": "Remove highlight",
+            "RemoveBgOutline": "Remove background & outline",
+            "FontStandardization": "Font Standardization",
+            "ApplyFontStandardization": "Apply font standardization",
+            "ResetLetterSpacing": "Reset letter spacing",
+            "ResetVertOffset": "Reset vertical offset",
+            "TextCaseConversion": "Text Case Conversion",
+            "CaseNone": "Do Not Change",
+            "SentenceCase": "Sentence case.",
+            "LowerCase": "lowercase",
+            "UpperCase": "UPPERCASE",
+            "CapitalizeEach": "Capitalize Each Word",
+            "ToggleCase": "tOGGLE cASE",
+            "SpecialFormatting": "Special Formatting",
+            "DisableAllCaps": "Disable ALL CAPS",
+            "DisableSmallCaps": "Disable Small Caps",
+            "ResetBaseline": "Reset to baseline",
+            "TextCleanerMenuTitle": "Text Cleaner",
+            "CleaningCompleted": "Text cleaning completed successfully!",
+            "OperationsApplied": "operations applied",
+            "RevertToOriginal": "Revert to Original",
+            "NewClean": "New Clean",
+            "DoNotClosePanel": "Please do not close the plugin panel.",
+            "Loading": "Loading..."
+        };
+        
+        return englishTranslations[key] || key;
+    };
+    
     const callCommand = (func, callback) => window.Asc.plugin.callCommand(func, false, true, callback);
 
     // Generic text property applier
@@ -482,7 +542,7 @@
          'NormalizeSpaces', 'NormalizeNumbers', 'ResetLetterSpacing', 'ResetVertOffset', 'FixCasing',
          'DisableAllCaps', 'DisableSmallCaps', 'ResetBaseline', 'clean-button', 'CaseNone', 'SentenceCase',
          'LowerCase', 'UpperCase', 'CapitalizeEach', 'ToggleCase', 'CleaningCompleted', 'OperationsApplied',
-         'RevertToOriginal', 'NewClean', 'DoNotClosePanel'].forEach(setTr);
+         'RevertToOriginal', 'NewClean', 'DoNotClosePanel', 'Loading'].forEach(setTr);
 
         ['ClearFormatting', 'FontStandardization', 'TextCaseConversion', 'SpecialFormatting'].forEach(addChevron);
     };

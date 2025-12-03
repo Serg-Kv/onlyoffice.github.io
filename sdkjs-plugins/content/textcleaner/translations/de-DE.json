@@ -46,6 +46,8 @@
     "AboutTitle": "Textbereiniger",
     "AboutVersion": "Version 1.0.0",
     "AboutDescription": "Dieses Plugin hilft Ihnen, den Text in Ihrem Dokument mit verschiedenen Optionen zu bereinigen und zu formatieren. Sie können leicht überflüssige Leerzeichen entfernen, die Interpunktion korrigieren und viele weitere Funktionen durchführen.",
-    "AboutCopyright": "© 2025 ONLYOFFICE Plugin"
+    "AboutCopyright": "© 2025 ONLYOFFICE Plugin",
+    "Loading": "Wird geladen...",
+    "About": "Über"
   }
   

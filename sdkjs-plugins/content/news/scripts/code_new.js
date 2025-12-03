@@ -57,34 +57,9 @@
    * Handle theme changes
    */
   window.Asc.plugin.onThemeChanged = function (theme) {
-    let link = document.getElementById("theme-style");
-
-    if (!link) {
-      link = document.createElement("link");
-      link.rel = "stylesheet";
-      link.type = "text/css";
-      link.media = "all";
-      link.id = "theme-style";
-      document.head.appendChild(link);
-    }
-
-    if (theme.type === "dark") {
-      link.href = "resources/style/dark-theme.css";
-    } else {
-      link.href = "resources/style/light-theme.css";
-    }
-
-    // Reveal body after theme is applied
-    const revealBody = function () {
-      document.body.style.visibility = "visible";
-      document.body.style.opacity = "1";
-    };
-
-    if (document.body) {
-      revealBody();
-    } else {
-      window.addEventListener("DOMContentLoaded", revealBody);
-    }
+    // Set the data-theme attribute on the body
+    document.body.setAttribute("data-theme", theme.type);
+    console.log("Applied theme:", theme.type);
   };
 
   /**
