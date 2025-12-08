@@ -130,3 +130,6 @@
 * Add Grammar & Spelling functionality.
 * Add OpenRouter provider.
 * Refactoring helper functions.
+
+## 3.1.0
+* Custom functions added.
