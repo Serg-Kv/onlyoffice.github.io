@@ -577,11 +577,7 @@ HELPERS.word.push((function () {
 
   return func;
 })());
-HELPERS.word.push(
-// Генерирует хэштеги по тексту. Может генерировать хэштеги как для выделеного текста, так и для всего документа.
-
-
-(function () {
+HELPERS.word.push((function () {
     let func = new RegisteredFunction();
     func.name = "generateHashtags";
     func.description = "Use this function if you need to generate hashtags for selected text. The AI will analyze the content and return a set of relevant hashtags that can be inserted directly after the selected text or at the end of the document.";
@@ -603,6 +599,7 @@ HELPERS.word.push(
     func.call = async function (params) {
 
         let count = params.count || 5;
+        console.log ("Generate Hashtag function triggrerd")
 
         let text = await Asc.Editor.callCommand(function () {
             let doc = Api.GetDocument();

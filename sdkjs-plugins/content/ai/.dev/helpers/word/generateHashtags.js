@@ -1,7 +1,3 @@
-
-// Генерирует хэштеги по тексту. Может генерировать хэштеги как для выделеного текста, так и для всего документа.
-
-
 (function () {
     let func = new RegisteredFunction();
     func.name = "generateHashtags";
@@ -24,6 +20,7 @@
     func.call = async function (params) {
 
         let count = params.count || 5;
+        console.log ("Generate Hashtag function triggrerd")
 
         let text = await Asc.Editor.callCommand(function () {
             let doc = Api.GetDocument();
