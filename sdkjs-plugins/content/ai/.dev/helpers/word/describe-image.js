@@ -79,6 +79,7 @@
    // The actual logic executed inside the editor
   func.call = async function (params) {
     let prompt = params.prompt;
+    console.log("desribe-iamge function called")
 
     async function insertMessage(message) {
       Asc.scope._message = String(message || "");
