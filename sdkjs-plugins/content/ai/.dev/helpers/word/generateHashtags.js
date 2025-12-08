@@ -3,7 +3,6 @@
 
 
 (function () {
-WORD_FUNCTIONS.generateHashtags = function () {
     let func = new RegisteredFunction();
     func.name = "generateHashtags";
     func.description = "Use this function if you need to generate hashtags for selected text. The AI will analyze the content and return a set of relevant hashtags that can be inserted directly after the selected text or at the end of the document.";
@@ -105,6 +104,6 @@ WORD_FUNCTIONS.generateHashtags = function () {
     };
 
     return func;
-    }
+    
 
 })();
