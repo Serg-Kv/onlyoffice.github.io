@@ -578,23 +578,47 @@ HELPERS.word.push((function () {
   return func;
 })());
 HELPERS.word.push((function () {
-    let func = new RegisteredFunction();
-    func.name = "generateHashtags";
-    func.description = "Use this function if you need to generate hashtags for selected text. The AI will analyze the content and return a set of relevant hashtags that can be inserted directly after the selected text or at the end of the document.";
-    func.params = [
-        "count (number): how many hashtags to generate (default is 5)"
-    ];
+    let func = new RegisteredFunction({
+        name: "generateHashtags",
+        description:
+            "Generates relevant hashtags for the selected text. The AI analyzes the content and returns a set of hashtags that can be inserted after the selection or at the end of the document.",
 
-    func.examples = [
-        "If you need to generate hashtags for selected text, respond with:\n" +
-        "[functionCalling (generateHashtags)]: {\"prompt\" : \"Generate hashtags for this text\"}",
+        // Parameters that the AI can receive
+        parameters: {
+            type: "object",
+            properties: {
+                prompt: {
+                    type: "string",
+                    description: "Instruction for the AI (e.g., 'Generate hashtags for this text.')",
+                },
+                count: {
+                    type: "number",
+                    description: "How many hashtags to generate (default is 5)",
+                },
+            },
+            required: ["prompt"],
+        },
 
-        "If you need to generate 10 hashtags for a paragraph, respond with:\n" +
-        "[functionCalling (generateHashtags)]: {\"prompt\" : \"Generate 10 hashtags for this paragraph\", \"count\": 10}",
+        // Usage examples
+        examples: [
+            {
+                prompt: "Generate hashtags for this text.",
+                arguments: { prompt: "Generate hashtags for this text." },
+            },
+            {
+                prompt: "Generate 10 hashtags for this paragraph.",
+                arguments: {
+                    prompt: "Generate 10 hashtags for this paragraph.",
+                    count: 10,
+                },
+            },
+            {
+                prompt: "Create social media hashtags.",
+                arguments: { prompt: "Create social media hashtags." },
+            },
+        ],
+    });
 
-        "If you need to create social media hashtags, respond with:\n" +
-        "[functionCalling (generateHashtags)]: {\"prompt\" : \"Generate social media hashtags\"}"
-    ];
 
     func.call = async function (params) {
 
