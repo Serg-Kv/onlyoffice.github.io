@@ -781,26 +781,31 @@ function hideLoadingScreen() {
   }
 }
 
-function insertDateValue(formattedDate, selectedDate) {
+// FIXED: Using Asc.scope instead of eval for security and maintainability
+function insertDateValue(formattedDate, selectedDate, selectedFormat) {
   if (!window.pluginAPI) {
     console.error("Plugin API not available");
     throw new Error("Plugin API not available");
   }
 
-  const escapedDate = formattedDate
-    .replace(/\\/g, "\\\\")
-    .replace(/"/g, '\\"')
-    .replace(/'/g, "\\'");
-
   try {
-    // Store the date value in Asc.scope so it can be accessed by the plugin command
-    window.Asc.scope.dateToInsert = escapedDate;
+    // Convert JavaScript Date to Excel serial number
+    // Excel dates are days since December 30, 1899
+    const excelEpoch = new Date(1899, 11, 30);
+    const excelSerialNumber = Math.floor(
+      (selectedDate - excelEpoch) / (24 * 60 * 60 * 1000)
+    );
 
-    // Use Asc.scope instead of eval - much safer and cleaner
+    // Store the date value and format in Asc.scope
+    window.Asc.scope.dateValue = excelSerialNumber;
+    window.Asc.scope.formatCode = getExcelFormatCode(selectedFormat);
+
+    // Use Asc.scope - insert as actual date number
     window.pluginAPI.callCommand(function () {
       try {
         // Access the date from Asc.scope
-        var dateValue = Asc.scope.dateToInsert;
+        var dateValue = Asc.scope.dateValue;
+        var formatCode = Asc.scope.formatCode;
         var oWorksheet = Api.GetActiveSheet();
 
         if (!oWorksheet) {
@@ -811,7 +816,8 @@ function insertDateValue(formattedDate, selectedDate) {
         if (!oSelection) {
           var oActiveCell = oWorksheet.GetActiveCell();
           if (oActiveCell) {
-            oActiveCell.SetValue("'" + dateValue);
+            oActiveCell.SetValue(dateValue);
+            oActiveCell.SetNumberFormat(formatCode);
             return true;
           }
           return false;
@@ -819,7 +825,8 @@ function insertDateValue(formattedDate, selectedDate) {
 
         try {
           oSelection.Clear();
-          oSelection.SetValue("'" + dateValue);
+          oSelection.SetValue(dateValue);
+          oSelection.SetNumberFormat(formatCode);
           return true;
         } catch (directError) {
           try {
@@ -832,19 +839,22 @@ function insertDateValue(formattedDate, selectedDate) {
                 for (var col = 0; col < colCount; col++) {
                   var oCell = oRange.GetRows(row).GetCells(col);
                   if (oCell) {
-                    oCell.SetValue("'" + dateValue);
+                    oCell.SetValue(dateValue);
+                    oCell.SetNumberFormat(formatCode);
                   }
                 }
               }
               return true;
             } else {
-              oSelection.SetValue("'" + dateValue);
+              oSelection.SetValue(dateValue);
+              oSelection.SetNumberFormat(formatCode);
               return true;
             }
           } catch (cellError) {
             var oActiveCell = oWorksheet.GetActiveCell();
             if (oActiveCell) {
-              oActiveCell.SetValue("'" + dateValue);
+              oActiveCell.SetValue(dateValue);
+              oActiveCell.SetNumberFormat(formatCode);
               return true;
             }
             return false;
@@ -856,14 +866,38 @@ function insertDateValue(formattedDate, selectedDate) {
     });
 
     // Clean up the scope after use
-    delete window.Asc.scope.dateToInsert;
+    delete window.Asc.scope.dateValue;
+    delete window.Asc.scope.formatCode;
 
     return true;
   } catch (e) {
     console.error("Error in insertDateValue:", e);
     // Clean up on error too
-    delete window.Asc.scope.dateToInsert;
+    delete window.Asc.scope.dateValue;
+    delete window.Asc.scope.formatCode;
     throw e;
+  }
+}
+
+// Helper function to convert our format strings to Excel number format codes
+function getExcelFormatCode(format) {
+  switch (format) {
+    case "MM/DD/YYYY":
+      return "mm/dd/yyyy";
+    case "dddd, MMMM D, YYYY":
+      return "dddd, mmmm dd, yyyy";
+    case "MMMM D, YYYY":
+      return "mmmm dd, yyyy";
+    case "M/D/YY":
+      return "mm/dd/yy";
+    case "YYYY-MM-DD":
+      return "yyyy-mm-dd";
+    case "D-MMM-YY":
+      return "dd-mmm-yy";
+    case "M.D.YYYY":
+      return "mm.dd.yyyy";
+    default:
+      return "mm/dd/yyyy";
   }
 }
 
@@ -956,7 +990,7 @@ function initializeDatePicker() {
         const formattedDate = calendar.formatDate(selectedDate, currentFormat);
 
         // Insert the date (synchronous operation)
-        insertDateValue(formattedDate, selectedDate);
+        insertDateValue(formattedDate, selectedDate, currentFormat);
 
         // Success! Reset to today's date
         const todaysDate = new Date();
