@@ -15,6 +15,7 @@
   "guid": "asc.{F8B5E3A1-9C7D-4E2F-A1B3-5D8E9F0A1C2D}",
   "version": "0.1.0",
   "minVersion": "8.2.0",
+  "offered": "Jijinbei",
   "variations": [
     {
       "description": "Insert Typst mathematical formulas as SVG",
