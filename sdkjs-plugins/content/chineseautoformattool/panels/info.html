@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8" />
+  <base href="../">
+  <script src="scripts/v1/plugins.js"></script>
+  <title>Info</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      margin: 12px;
+    }
+    #info_message {
+      font-size: 12px;
+    }
+    #info-image {
+      height: 40px;
+      margin: 12px;
+    }
+    #info-container {
+      display: flex;
+      align-items: center;
+    }
+  </style>
+</head>
+<body>
+  <div id="info-container">
+    <img id="info-image" src="resources/info.png" alt="Info">
+    <div id="info_message"></div>
+  </div>
+  <script>
+    window.Asc.plugin.init = function () {
+      document.getElementById("info_message").innerText = localStorage.getItem("info_message") || "No information available.";
+    };
+  </script>
+</body>
+</html>

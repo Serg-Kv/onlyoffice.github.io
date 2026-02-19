@@ -40,5 +40,7 @@
 	{ "name": "news", "discussion": "" },
 	{ "name": "texthighlighter", "discussion": "" },
 	{ "name": "bergamot", "discussion": "" },
-	{ "name": "textcleaner", "discussion": "" }
+	{ "name": "textcleaner", "discussion": "" },
+	{ "name": "chineseautoformattool", "discussion": "" },
+	{ "name": "chineseconvertor", "discussion": "" }
 ]
