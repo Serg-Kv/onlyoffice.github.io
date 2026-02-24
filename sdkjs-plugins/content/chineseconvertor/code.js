@@ -2,12 +2,10 @@ const tr = (s) =>
     (window.Asc && window.Asc.plugin && typeof window.Asc.plugin.tr === "function")
         ? window.Asc.plugin.tr(s) : s;
 
-// 初始化插件
-window.Asc.plugin.init = function() {
-    // console.log("插件已初始化1");
-};
+// Initialize the plugin
+window.Asc.plugin.init = function() {};
 
-// 上下文菜单显示事件
+// Context menu display event
 Asc.plugin.attachEvent("onContextMenuShow", (options) => {
     const items = {
         guid: window.Asc.plugin.guid,
@@ -60,7 +58,16 @@ function handleTextOperation(id) {
 
 function getSelectedText(id, preselectedText = null) {
     Asc.scope.preselectedText = preselectedText;
-    window.Asc.plugin.executeMethod("GetSelectedText", [], function (data) {
+    const props = {
+        Numbering: false,
+        Math: false,
+        TableCellSeparator: "\n",
+        TableRowSeparator: "\n",
+        ParaSeparator: "\n",
+        TabSymbol: "\t",
+        NewLineSeparator: "\r",
+    };
+    window.Asc.plugin.executeMethod("GetSelectedText", [props], function (data) {
         data = data || Asc.scope.preselectedText;
         if (data && data.trim() !== '') {
             core(id, data);
@@ -124,21 +131,7 @@ function replaceTextSmart(replacementText){
 }
 
 function textSeperator(text) {
-    const textWithPlaceholder = text.replace(
-        /(?<=^|\r\n)([0-9]+[.)]|[a-z]+[.)]|[ivxlcdm]+[.)]|[·•vü¨–○oØ▪►\-*§])\t/gim,
-        '___LIST_TAB___'
-    );
-
-
-    const seperatedText = textWithPlaceholder.split(/(\r\n|\t)/)
-        .reduce((arr, item, idx, src) => {
-            if (!/(\r\n|\t)/.test(item)) arr.push(item);
-            if (idx > 0 && /(\r\n|\t)/.test(src[idx - 1]) && /(\r\n|\t)/.test(item)) arr.push('');
-            return arr;
-        }, []);
-
-    const result = seperatedText.map(item => item.replace(/___LIST_TAB___/g, ''));
-    
+    const result = text.split(/\n/).map(line => line.replace('\r', '\n'));
     if (result.length > 0 && result[result.length - 1] === '')result.pop();
     return result;
 }
@@ -192,7 +185,9 @@ function addPinyin(text){
         type: 'array' // 返回数组形式，和原文字一一对应
     });
     return filteredPinyins = pinyins.filter((py, index) => {
+        // Get the corresponding character from the original text
         const char = text[index];
+        // Only keep pinyin for Chinese characters
         return char && /[\u4e00-\u9fa5]/.test(char);
     });
 }

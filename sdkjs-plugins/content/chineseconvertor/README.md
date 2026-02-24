@@ -1,38 +1,102 @@
-## Overview
+# Chinese Converter — Simplified ⇄ Traditional & Pinyin (ONLYOFFICE Plugin)
 
-This plugin can help you convert between simplified and traditional Chinese characters, as well as add or remove pinyin from text.
+A lightweight and practical ONLYOFFICE plugin for Chinese text conversion. It enables instant conversion between Simplified and Traditional Chinese, and supports adding or removing Pinyin annotations — directly inside the editor.
 
-## Changelog
+> Current version: see `CHANGELOG.md`
 
-**Version 0.0.1 Release date: 2025/07/23**
+---
 
-- The plugin supports selecting text and right clicking to use the corresponding function through the context menu.
+## 🚀 Feature Overview
 
-**Version 0.0.2 Release date: 2025/09/11**
+- **Simplified → Traditional**
+  - Convert selected Simplified Chinese text to Traditional Chinese.
 
-- Add a side panel to the plugin.
-- Fix plugin file directory format related issues.
-- Localization of referenced JS packages.
+- **Traditional → Simplified**
+  - Convert selected Traditional Chinese text to Simplified Chinese.
 
-**Version 0.0.3 Release date: 2025/09/30**
+- **Add Pinyin**
+  - Automatically generates Pinyin for each Chinese character in the selected text.
+  - Pinyin is inserted inline immediately after each character in parentheses.
+    - Example: 你好 → 你(nǐ)好(hǎo)
+  - Useful for language learners, teaching materials, and pronunciation guidance.
 
-- Add icons to plugin.
-- The plugin supports both Chinese and English languages.
-- Replace appropriate screenshots for plugin introduction.
-- Optimize the UI of plugins.
-- Fix the issue of adding incorrect pinyin for polyphonic characters.
+- **Remove Pinyin**
+  - Removes previously added inline Pinyin annotations (text inside parentheses).
+  - Restores clean Chinese text formatting.
 
-**Version 0.0.4 Release date: 2025/10/08**
+- **Right-Click Quick Access**
+  - Access conversion features directly from the context menu after selecting text.
 
-- Supplement and improve the changelog of the plugin.
-- Fix incorrect display in side panel.
-- Add “offered by” information to plugin.
-- remove the excess console log.
+- **Multi-Editor Support**
+  - Works in:
+    - Document Editor
+    - Spreadsheet Editor
+    - PDF Editor
 
-**Version 0.0.5 Release date: 2025/12/01**
+---
 
-- Completely refactored the core logic for processing selected text to ensure more accurate translation and pinyin generation.
-- Added full support for selecting and converting text inside tables and lists within the Document Editor.
-- Ensured compatibility with the Spreadsheet Editor, allowing selected cells to be translated or have pinyin added without issues.
-- Removed support for the Slide Editor, as ReplaceTextSmart is not functional for text contained within slide tables.
-- Improved stability of selection handling across editors and optimized the internal translation flow.
+## 🖼️ UI Preview
+
+📌 **Left Side Panel**  
+_The main plugin interface displayed in the left window panel._  
+![Left Panel](resources/store/screenshots/screenshot1.png)
+
+📋 **Context Window (Right-Click Menu)**  
+_Quick access to conversion actions directly from the context menu._  
+![Context Window](resources/store/screenshots/screenshot2.png)
+
+---
+
+## 🛠️ How to Use
+
+1. Clone the repository and deploy it to an ONLYOFFICE environment that supports plugins.
+2. Open a document, spreadsheet, or PDF file.
+3. Select the Chinese text you want to modify.
+4. Use one of the following methods:
+   - Open **Chinese Converter** from the toolbar (left side panel).
+   - Right-click the selected text and choose the desired action.
+5. Choose one of the following actions:
+   - `Simplified → Traditional`
+   - `Traditional → Simplified`
+   - `Add Pinyin`
+   - `Remove Pinyin`
+
+💡 Tip: You can also right-click after selecting text to access actions quickly.
+
+---
+
+## ✅ Supported Editors
+
+- ✅ ONLYOFFICE Document Editor  
+- ✅ ONLYOFFICE Spreadsheet Editor  
+- ✅ ONLYOFFICE PDF Editor  
+- ✅ Desktop Editors & Web Document Server  
+
+---
+
+## 💡 For Developers
+
+- Built using the ONLYOFFICE plugin framework (`sdkjs-plugins`).
+- Uses:
+  - `Api.GetSelectedText()` for retrieving selected content.
+  - `Api.ReplaceTextSmart()` for safe text replacement.
+- Plugin configuration defined in `config.json`.
+- Supports responsive side panel UI.
+
+---
+
+## 📦 Compatibility
+
+- ✅ ONLYOFFICE Desktop Editors  
+- ✅ ONLYOFFICE Document Server (Web)  
+- ✅ Modern browser environments  
+
+---
+
+## 📜 License
+
+Released under the [MIT License](LICENSE).
+
+---
+
+If you find this plugin helpful, please ⭐ Star, 🍴 Fork, and open Issues!
