@@ -103,7 +103,8 @@
   // —— 本地化回调：词典就绪后，刷新工具栏文本与提示 ——
   window.Asc.plugin.onTranslate = function () {
     getInfoModal(
-      tr("The plugin is ready, the toolbar menu has been updated. Please go to the Chinese-Auto Format Tool tab above to use the formatting features.")
+      tr("The plugin is ready, the toolbar menu has been updated. Please go to the Chinese-Auto Format Tool tab above to use the formatting features."),
+      { silentOnWeb: true }
     );
     // ……你原来的 setText / 提示等本地化代码（如果有）……
     const items = getToolbarItems(); // 这里的 tabs[0].text 要用 tr("Chinese Formatter")
@@ -124,6 +125,68 @@
     } catch (e) {
       return path;
     }
+  }
+
+  function isBrowserPluginHost() {
+    return /^https?:$/i.test(window.location.protocol || "");
+  }
+
+  function canUsePluginWindows() {
+    const plugin = window.Asc && window.Asc.plugin;
+    if (isBrowserPluginHost()) return false;
+    return !!(
+      window.Asc &&
+      typeof window.Asc.PluginWindow === "function" &&
+      plugin &&
+      typeof plugin.executeMethod === "function"
+    );
+  }
+
+  function showBrowserInfo(message, options) {
+    if (!message) return;
+    if (options && options.silentOnWeb) {
+      console.info(message);
+      return;
+    }
+    try {
+      window.alert(message);
+    } catch (e) {
+      console.info(message);
+    }
+  }
+
+  function applyAllDetectedChangesDirectly(fixed, report) {
+    const issueCount = report.reduce(function (sum, item) {
+      return sum + (((item && item.errors) || []).length);
+    }, 0);
+    const ok = window.confirm(
+      tr("Windowed preview is unavailable in the web editor.") +
+      "\n\n" +
+      tr("Apply all detected fixes now using the saved plugin settings?") +
+      "\n" +
+      tr("Issues found: ") + issueCount
+    );
+    if (!ok) return;
+
+    const isPPT = window.Asc.plugin.info && window.Asc.plugin.info.editorType === "slide";
+    if (isPPT) {
+      startPptApplyWatcher(JSON.stringify(fixed));
+      return;
+    }
+
+    Asc.scope.convertedLines = fixed.slice();
+    window.Asc.plugin.callCommand(
+      function () {
+        if (Asc.scope.convertedLines && typeof Api.ReplaceTextSmart === "function") {
+          Api.ReplaceTextSmart(Asc.scope.convertedLines, "\t", "\r");
+        }
+      },
+      false,
+      true,
+      function () {
+        getInfoModal(tr("Applied all detected formatting fixes."));
+      }
+    );
   }
 
   // ---------------- 统一进入报告流程 ----------------
@@ -160,6 +223,11 @@
       window.Asc.plugin.executeMethod("ShowError", [
         tr("No fixable issues found"),
       ]);
+      return;
+    }
+
+    if (!canUsePluginWindows()) {
+      applyAllDetectedChangesDirectly(fixed, report);
       return;
     }
 
@@ -900,6 +968,10 @@
       // —— 打开空格策略选项面板 ——
       function openPanel(text) {
         selectedTextToFormat = text;
+        if (!canUsePluginWindows()) {
+          proceedToReport();
+          return;
+        }
 		closeWindowIfMatch(winOptions);
 
         winOptions = new window.Asc.PluginWindow();
@@ -1059,6 +1131,12 @@
 
     // D. 设置
     this.attachToolbarMenuClickEvent("setting", function () {
+      if (!canUsePluginWindows()) {
+        getInfoModal(
+          tr("The settings window is unavailable in the web editor. The plugin will keep using the saved settings.")
+        );
+        return;
+      }
       closeWindowIfMatch(winSetting);
       winSetting = new window.Asc.PluginWindow();
       winSetting.show({
@@ -1162,7 +1240,11 @@
     };
   }
 
-  function getInfoModal(message) {
+  function getInfoModal(message, options) {
+    if (!canUsePluginWindows()) {
+      showBrowserInfo(message, options);
+      return;
+    }
 	closeWindowIfMatch(winInfo);
     winInfo = new window.Asc.PluginWindow();
     winInfo.attachEvent("onWindowReady", function () {

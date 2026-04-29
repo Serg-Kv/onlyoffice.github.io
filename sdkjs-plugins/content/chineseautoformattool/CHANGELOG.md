@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.3
+
+* Add a web fallback for modal-dependent flows when `PluginWindow` is unavailable.
+* Prevent web builds from crashing on info/settings/report windows and allow direct apply with saved settings.
+
 ## 1.0.2
 
 * Add modal panel config for packaged internal windows.
