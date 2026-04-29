@@ -100,8 +100,72 @@
 
   // 放在 (function (window, undefined) { 之后的任意顶层位置
   const tr = (s) => window.Asc && window.Asc.plugin ? window.Asc.plugin.tr(s) : s;
+
+  function getEditorCallMethod() {
+    const asc = window.Asc;
+    if (asc && asc.Editor && typeof asc.Editor.callMethod === "function") {
+      return asc.Editor.callMethod.bind(asc.Editor);
+    }
+    return null;
+  }
+
+  function ensurePluginMethodBridge() {
+    const plugin = window.Asc && window.Asc.plugin;
+    if (!plugin) return false;
+    if (typeof plugin.executeMethod === "function") return true;
+
+    const callMethod = getEditorCallMethod();
+    if (!callMethod) return false;
+
+    plugin.executeMethod = function (name, args, callback) {
+      const methodArgs = Array.isArray(args) ? args : (args == null ? [] : [args]);
+      let result;
+
+      try {
+        result = callMethod(name, methodArgs);
+      } catch (error) {
+        console.error("executeMethod bridge failed:", name, error);
+        if (typeof callback === "function") callback(undefined);
+        return undefined;
+      }
+
+      if (typeof callback === "function") {
+        if (result && typeof result.then === "function") {
+          result.then(callback).catch(function (error) {
+            console.error("executeMethod bridge callback failed:", name, error);
+            callback(undefined);
+          });
+        } else {
+          callback(result);
+        }
+      }
+
+      return result;
+    };
+
+    return true;
+  }
+
+  function callPluginMethod(name, args, callback) {
+    ensurePluginMethodBridge();
+
+    const plugin = window.Asc && window.Asc.plugin;
+    if (plugin && typeof plugin.executeMethod === "function") {
+      return plugin.executeMethod(name, args, callback);
+    }
+
+    if (name === "ShowError" && Array.isArray(args) && args.length > 0) {
+      showBrowserInfo(String(args[0]));
+    }
+
+    if (typeof callback === "function") callback(undefined);
+    return undefined;
+  }
+
+  ensurePluginMethodBridge();
   // —— 本地化回调：词典就绪后，刷新工具栏文本与提示 ——
   window.Asc.plugin.onTranslate = function () {
+    ensurePluginMethodBridge();
     getInfoModal(
       tr("The plugin is ready, the toolbar menu has been updated. Please go to the Chinese-Auto Format Tool tab above to use the formatting features."),
       { silentOnWeb: true }
@@ -110,11 +174,11 @@
     const items = getToolbarItems(); // 这里的 tabs[0].text 要用 tr("Chinese Formatter")
     if (!__toolbarAdded) {
       // ✅ First time: Create the tab with current language, tab title will use the translated text
-      window.Asc.plugin.executeMethod("AddToolbarMenuItem", [items]);
+      callPluginMethod("AddToolbarMenuItem", [items]);
       __toolbarAdded = true;
     } else {
       // ✅ Subsequent language switches: Only update button text/tooltips
-      window.Asc.plugin.executeMethod("UpdateToolbarMenuItem", [items]);
+      callPluginMethod("UpdateToolbarMenuItem", [items]);
     }
   };
 
@@ -197,7 +261,7 @@
       // Depends on runFormatCheck(text) in scripts/formatChecker.js
       results = runFormatCheck(selectedTextToFormat, editorType);
     } catch (e) {
-      window.Asc.plugin.executeMethod("ShowError", [
+      callPluginMethod("ShowError", [
         tr("Detection failed: formatChecker.js is missing or has an error"),
       ]);
       return;
@@ -214,13 +278,13 @@
       fixed.pop();
     }
     if (lines.length !== fixed.length) {
-      window.Asc.plugin.executeMethod("ShowError", [
+      callPluginMethod("ShowError", [
         tr("Conversion failed: paragraph count mismatch"),
       ]);
       return;
     }
     if (report.length === 0) {
-      window.Asc.plugin.executeMethod("ShowError", [
+      callPluginMethod("ShowError", [
         tr("No fixable issues found"),
       ]);
       return;
@@ -331,7 +395,7 @@
         TabSymbol: "\t",
         NewLineSeparator: "\r",
       };
-      plugin.executeMethod("GetSelectedText", [props], function (t) {
+        callPluginMethod("GetSelectedText", [props], function (t) {
         const picked = t || "";
 
         // 公用转换（编辑器侧，非命令体）
@@ -584,7 +648,7 @@
         NewLineSeparator: "\r",
       };
 
-      plugin.executeMethod("GetSelectedText", [props], function (t) {
+          callPluginMethod("GetSelectedText", [props], function (t) {
         const picked = t || "";
 
         // 公用转换（编辑器侧，非命令体）
@@ -807,14 +871,14 @@
       };
 
       // —— 首选：直接取“选中文本”（Word/可选中对象的场景）
-      plugin.executeMethod("GetSelectedText", [props], function (s) {
+          callPluginMethod("GetSelectedText", [props], function (s) {
         if (s && s.trim()) {
           openPanel(s);
           return;
         }
 
         // 兜底：获取“选中内容的纯文本”
-        plugin.executeMethod( "GetSelectedContent", [{ type: "text" }], function (s2) {
+            callPluginMethod("GetSelectedContent", [{ type: "text" }], function (s2) {
             if (s2 && s2.trim()) {
               openPanel(s2.replace(/\r\n?/g, "\n"));
               return;
@@ -954,10 +1018,10 @@
                   if (text && text.trim()) {
                     openPanel(text);
                   } else {
-                    plugin.executeMethod("ShowError", [tr("Please select the text to diagnose!")]);
+                    callPluginMethod("ShowError", [tr("Please select the text to diagnose!")]);
                   }
                 } else {
-                  plugin.executeMethod("ShowError", [tr("Please select the text to diagnose!")]);
+                  callPluginMethod("ShowError", [tr("Please select the text to diagnose!")]);
                 }
               },
             );

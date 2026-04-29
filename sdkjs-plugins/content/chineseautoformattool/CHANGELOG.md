@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.4
+
+* Bridge `executeMethod` to `Asc.Editor.callMethod` in web hosts where the legacy plugin API is not exposed.
+* Guard store rating rendering when a plugin has no `rating` payload.
+
 ## 1.0.3
 
 * Add a web fallback for modal-dependent flows when `PluginWindow` is unavailable.
