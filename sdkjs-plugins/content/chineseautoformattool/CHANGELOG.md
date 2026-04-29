@@ -1,14 +1,9 @@
 # Change Log
 
-## 1.0.4
+## 1.0.5
 
-* Bridge `executeMethod` to `Asc.Editor.callMethod` in web hosts where the legacy plugin API is not exposed.
-* Guard store rating rendering when a plugin has no `rating` payload.
-
-## 1.0.3
-
-* Add a web fallback for modal-dependent flows when `PluginWindow` is unavailable.
-* Prevent web builds from crashing on info/settings/report windows and allow direct apply with saved settings.
+* Restore the pre-web-fallback implementation after the modal window fix.
+* Keep the packaged modal window behavior from the `1.0.2` generation and drop the later web-only experiments.
 
 ## 1.0.2
 
