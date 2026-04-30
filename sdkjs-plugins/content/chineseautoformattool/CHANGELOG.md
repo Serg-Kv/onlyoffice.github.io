@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.7
+
+* Point panel-relative translation loading back to the root `translations` folder via `base href="../"`.
+* Keep the remote panel runtime from `1.0.6` unchanged and avoid duplicating locale files under `panels/`.
+
 ## 1.0.6
 
 * Load panel runtime files from the external `sdkjs-plugins/v1` endpoint instead of bundled local `scripts/V1`.
