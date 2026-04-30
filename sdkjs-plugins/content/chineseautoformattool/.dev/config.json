@@ -1,0 +1,8 @@
+{
+    "excludes": [
+        ".dev/*",
+        "node_modules/*",
+        "deploy/*",
+        "scripts/V1/*"
+    ]
+}
