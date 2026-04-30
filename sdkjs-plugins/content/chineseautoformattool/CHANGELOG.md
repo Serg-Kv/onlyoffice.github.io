@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.6
+
+* Load panel runtime files from the external `sdkjs-plugins/v1` endpoint instead of bundled local `scripts/V1`.
+* Keep `panels/config.json` unchanged while testing remote runtime behavior for child windows.
+
 ## 1.0.5
 
 * Restore the pre-web-fallback implementation after the modal window fix.
