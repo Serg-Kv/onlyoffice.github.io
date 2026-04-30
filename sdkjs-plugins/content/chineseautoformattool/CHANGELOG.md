@@ -1,5 +1,10 @@
 # Change Log
 
+## 1.0.8
+
+* Remove `base href` from child windows so external runtime files are not redirected to local `file:///.../v1/...`.
+* Rewrite only `translations/...` XHR requests to `../translations/...` for panel pages.
+
 ## 1.0.7
 
 * Point panel-relative translation loading back to the root `translations` folder via `base href="../"`.
