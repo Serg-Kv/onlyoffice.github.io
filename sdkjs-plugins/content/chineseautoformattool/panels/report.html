@@ -3,22 +3,8 @@
 
 <head>
 	<meta charset="utf-8" />
-	<script>
-		(function () {
-			var originalOpen = XMLHttpRequest.prototype.open;
-			function rewriteTranslationsPath(url) {
-				if (typeof url !== "string") return url;
-				if (url.indexOf("./translations/") === 0) return "../" + url.slice(2);
-				if (url.indexOf("translations/") === 0) return "../" + url;
-				return url;
-			}
-			XMLHttpRequest.prototype.open = function (method, url) {
-				arguments[1] = rewriteTranslationsPath(url);
-				return originalOpen.apply(this, arguments);
-			};
-		})();
-	</script>
 	<!-- 子页在 panels/ 下，统一把相对路径指回插件根： -->
+	<base href="../">
 	<script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.js"></script>
 	<script type="text/javascript" src="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins-ui.js"></script>
 	<link rel="stylesheet" href="https://onlyoffice.github.io/sdkjs-plugins/v1/plugins.css">
