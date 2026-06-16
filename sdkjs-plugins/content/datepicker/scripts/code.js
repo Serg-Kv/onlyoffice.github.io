@@ -730,6 +730,12 @@ window.Asc.plugin.onTranslate = function () {
     loadingText.innerHTML = tr("Loading...");
   }
 
+  // Update keep styles checkbox label
+  const keepStylesLabel = document.getElementById("keepStylesLabel");
+  if (keepStylesLabel) {
+    keepStylesLabel.innerHTML = tr("Keep cell formatting");
+  }
+
   // Update input placeholder
   const dateInput = document.getElementById("dateInput");
   if (dateInput) {
@@ -782,7 +788,7 @@ function hideLoadingScreen() {
 }
 
 // FIXED: Using Asc.scope instead of eval for security and maintainability
-function insertDateValue(formattedDate, selectedDate, selectedFormat) {
+function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFromatting) {
   if (!window.pluginAPI) {
     console.error("Plugin API not available");
     throw new Error("Plugin API not available");
@@ -796,16 +802,18 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat) {
       (selectedDate - excelEpoch) / (24 * 60 * 60 * 1000)
     );
 
-    // Store the date value and format in Asc.scope
+    // Store the date value, format and keep cell formatting option in Asc.scope
     window.Asc.scope.dateValue = excelSerialNumber;
     window.Asc.scope.formatCode = getExcelFormatCode(selectedFormat);
+    window.Asc.scope.keepCellFromatting = keepCellFromatting;
 
     // Use Asc.scope - insert as actual date number
     window.pluginAPI.callCommand(function () {
       try {
-        // Access the date from Asc.scope
+        // Access values from Asc.scope
         var dateValue = Asc.scope.dateValue;
         var formatCode = Asc.scope.formatCode;
+        var keepCellFromatting = Asc.scope.keepCellFromatting;
         var oWorksheet = Api.GetActiveSheet();
 
         if (!oWorksheet) {
@@ -816,6 +824,9 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat) {
         if (!oSelection) {
           var oActiveCell = oWorksheet.GetActiveCell();
           if (oActiveCell) {
+            if (!keepCellFromatting) {
+              oActiveCell.Clear();
+            }
             oActiveCell.SetValue(dateValue);
             oActiveCell.SetNumberFormat(formatCode);
             return true;
@@ -823,43 +834,13 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat) {
           return false;
         }
 
-        try {
+        // If keepCellFromatting is false, clear the cell formatting first
+        if (!keepCellFromatting) {
           oSelection.Clear();
-          oSelection.SetValue(dateValue);
-          oSelection.SetNumberFormat(formatCode);
-          return true;
-        } catch (directError) {
-          try {
-            var oRange = oSelection;
-            if (oRange.GetRowsCount && oRange.GetColsCount) {
-              var rowCount = oRange.GetRowsCount();
-              var colCount = oRange.GetColsCount();
-
-              for (var row = 0; row < rowCount; row++) {
-                for (var col = 0; col < colCount; col++) {
-                  var oCell = oRange.GetRows(row).GetCells(col);
-                  if (oCell) {
-                    oCell.SetValue(dateValue);
-                    oCell.SetNumberFormat(formatCode);
-                  }
-                }
-              }
-              return true;
-            } else {
-              oSelection.SetValue(dateValue);
-              oSelection.SetNumberFormat(formatCode);
-              return true;
-            }
-          } catch (cellError) {
-            var oActiveCell = oWorksheet.GetActiveCell();
-            if (oActiveCell) {
-              oActiveCell.SetValue(dateValue);
-              oActiveCell.SetNumberFormat(formatCode);
-              return true;
-            }
-            return false;
-          }
         }
+        oSelection.SetValue(dateValue);
+        oSelection.SetNumberFormat(formatCode);
+        return true;
       } catch (e) {
         return false;
       }
@@ -868,6 +849,7 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat) {
     // Clean up the scope after use
     delete window.Asc.scope.dateValue;
     delete window.Asc.scope.formatCode;
+    delete window.Asc.scope.keepCellFromatting;
 
     return true;
   } catch (e) {
@@ -875,6 +857,7 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat) {
     // Clean up on error too
     delete window.Asc.scope.dateValue;
     delete window.Asc.scope.formatCode;
+    delete window.Asc.scope.keepCellFromatting;
     throw e;
   }
 }
@@ -988,9 +971,10 @@ function initializeDatePicker() {
     requestAnimationFrame(() => {
       try {
         const formattedDate = calendar.formatDate(selectedDate, currentFormat);
+        const keepCellFromatting = document.getElementById("keepStyles").checked;
 
         // Insert the date (synchronous operation)
-        insertDateValue(formattedDate, selectedDate, currentFormat);
+        insertDateValue(formattedDate, selectedDate, currentFormat, keepCellFromatting);
 
         // Success! Reset to today's date
         const todaysDate = new Date();
