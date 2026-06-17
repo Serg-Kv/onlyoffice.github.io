@@ -391,6 +391,47 @@ function runFormatCheck(text, editorType = "word") {
       }
 
       // 破折号统一：中文—中文之间，把 - / – / -- / —（有无空格）统一为“—”并去多余空格
+      const punctuationMap = {
+        "(": { full: "\uFF08", label: "Parentheses" },
+        ")": { full: "\uFF09", label: "Parentheses" },
+        "[": { full: "\uFF3B", label: "Square brackets" },
+        "]": { full: "\uFF3D", label: "Square brackets" },
+        "<": { full: "\u300A", label: "Book title mark" },
+        ">": { full: "\u300B", label: "Book title mark" },
+        "/": { full: "\uFF0F", label: "Slash" },
+        ",": { full: "\uFF0C", label: "Comma" },
+        ".": { full: "\u3002", label: "Period" },
+        ";": { full: "\uFF1B", label: "Semicolon" },
+        ":": { full: "\uFF1A", label: "Colon" },
+        "!": { full: "\uFF01", label: "Exclamation mark" },
+        "?": { full: "\uFF1F", label: "Question mark" }
+      };
+      const punctuationFixed = Array.from(fixed);
+      const punctuationChanged = new Set();
+      const isCJKNeighbor = (ch) => /[\u3400-\u4DBF\u4E00-\u9FFF\u3007]/.test(ch || "");
+      const nearestNonSpace = (index, step) => {
+        for (let cursor = index + step; cursor >= 0 && cursor < punctuationFixed.length; cursor += step) {
+          if (!/\s/.test(punctuationFixed[cursor])) return punctuationFixed[cursor];
+        }
+        return "";
+      };
+      for (let i = 0; i < punctuationFixed.length; i++) {
+        const entry = punctuationMap[punctuationFixed[i]];
+        if (!entry) continue;
+        if (!isCJKNeighbor(nearestNonSpace(i, -1)) && !isCJKNeighbor(nearestNonSpace(i, 1))) continue;
+        punctuationChanged.add(entry.label);
+        punctuationFixed[i] = entry.full;
+      }
+      if (punctuationChanged.size > 0) {
+        fixed = punctuationFixed.join("");
+        errors.push({
+          message: T("Half-width punctuation next to CJK normalized to full-width ({list})", {
+            list: Array.from(punctuationChanged).map(x => tr(x)).join('гЂЃ')
+          }),
+          rule: "punctNormalize:add"
+        });
+      }
+
       before = fixed;
       const reDash = /([\u3400-\u9FFF\u3007])\s*(?:--|—|–|-)\s*([\u3400-\u9FFF\u3007])/g;
       fixed = fixed.replace(reDash, '$1—$2');

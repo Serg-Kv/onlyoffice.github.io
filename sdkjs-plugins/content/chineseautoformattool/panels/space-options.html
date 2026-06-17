@@ -13,6 +13,7 @@
 		:root {
 			--bg: #f6f8fb;
 			--card: #fff;
+			--row: #fff;
 			--line: #e6e8ef;
 			--title: #111827;
 			--text: #374151;
@@ -20,6 +21,19 @@
 			--primary: #155EEF;
 			--primary-weak: #e7efff;
 			--ring: #cdd9ff;
+		}
+
+		body.theme-type-dark {
+			--bg: #1f2430;
+			--card: #2a3140;
+			--row: #31394a;
+			--line: #465066;
+			--title: #f3f4f6;
+			--text: #d6d9e0;
+			--muted: #a9b1c3;
+			--primary: #4f8cff;
+			--primary-weak: rgba(79, 140, 255, 0.16);
+			--ring: rgba(79, 140, 255, 0.32);
 		}
 
 		* {
@@ -97,7 +111,7 @@
 			padding: 10px 12px;
 			border: 1px solid var(--line);
 			border-radius: 10px;
-			background: #fff;
+			background: var(--row);
 		}
 
 		.row .label {
@@ -175,6 +189,23 @@
 			padding-top: 10px;
 			margin-top: 14px;
 			background: linear-gradient(to top, rgba(246, 248, 251, 1), rgba(246, 248, 251, 0));
+		}
+
+		body.theme-type-dark .card {
+			box-shadow: 0 10px 30px rgba(0, 0, 0, .22);
+		}
+
+		body.theme-type-dark .switch .track {
+			background: #4b5565;
+			border-color: #5a6478;
+		}
+
+		body.theme-type-dark .switch .thumb {
+			background: #f8fafc;
+		}
+
+		body.theme-type-dark .actions {
+			background: linear-gradient(to top, rgba(31, 36, 48, 1), rgba(31, 36, 48, 0));
 		}
 
 		.btn {
@@ -454,6 +485,26 @@
 			var label = document.getElementById(labelId);
 			if (input && label) input.setAttribute('aria-label', label.textContent || label.innerText);
 		}
+	</script>
+	<script>
+		(function () {
+			function applyTheme(theme) {
+				if (!window.Asc || !window.Asc.plugin) return;
+				if (typeof window.Asc.plugin.onThemeChangedBase === 'function') {
+					window.Asc.plugin.onThemeChangedBase(theme);
+				}
+			}
+
+			if (window.Asc && window.Asc.plugin) {
+				window.Asc.plugin.onThemeChanged = applyTheme;
+				if (typeof window.Asc.plugin.attachEvent === 'function') {
+					window.Asc.plugin.attachEvent('onThemeChanged', applyTheme);
+				}
+				if (window.Asc.plugin.theme) {
+					applyTheme(window.Asc.plugin.theme);
+				}
+			}
+		})();
 	</script>
 </body>
 

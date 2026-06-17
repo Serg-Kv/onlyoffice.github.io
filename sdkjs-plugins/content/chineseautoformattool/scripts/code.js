@@ -1,4 +1,4 @@
-// scripts/code.js
+﻿// scripts/code.js
 (function (window, undefined) {
   // ---------------- 初始化 ----------------
   let __pluginInitialized = false;
@@ -142,6 +142,26 @@
     __toolbarRefreshPending = false;
   }
 
+  function normalizeEllipsis(text, replacement = "……") {
+    return String(text).replace(/(?:\.{3,}|…+)/g, replacement);
+  }
+
+  function convertCharactersByMap(text, map, enabledChars, checkMappedChar = true) {
+    const enabled = enabledChars && enabledChars.length ? new Set(enabledChars) : null;
+    const normalized = normalizeEllipsis(text);
+    return Array.from(normalized).map((ch) => {
+      if (!Object.prototype.hasOwnProperty.call(map, ch)) {
+        return ch;
+      }
+      const mapped = map[ch];
+      const settingsChar = checkMappedChar ? mapped : ch;
+      if (enabled && !enabled.has(settingsChar)) {
+        return ch;
+      }
+      return mapped;
+    }).join("");
+  }
+
   // 生成绝对 URL
   function resolveUrl(path) {
     try {
@@ -206,7 +226,7 @@
       isModal: false,
       isVisual: true,
       size: [720, 480],
-      EditorsSupport: ["word", "cell", "slide"],
+      EditorsSupport: ["word", "cell"],
       buttons: [
         { text: tr("Apply & Save"), primary: true },
         { text: tr("Cancel"), primary: false },
@@ -290,24 +310,32 @@
       };
       plugin.executeMethod("GetSelectedText", [props], function (t) {
         const picked = t || "";
-
         // 公用转换（编辑器侧，非命令体）
         const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const convertLine = (line) => {
-          if (!line) return line;
-          const map = Asc.scope.__punct__.map;
-          const on = Asc.scope.__punct__.settings.punctuation || [];
-          let v = line.replace(/(?:\.{3,}|…+)/g, "……");
-          for (const [half, full] of Object.entries(map)) {
-            if (on.length === 0 || on.includes(full))
-              v = v.replace(new RegExp(esc(half), "g"), full);
-          }
-          return v;
-        };
+        const convertLine = (line) =>
+          convertCharactersByMap(
+            line,
+            Asc.scope.__punct__.map,
+            Asc.scope.__punct__.settings.punctuation || [],
+            true,
+          );
 
+        const convertLine2 = (line) =>
+          convertCharactersByMap(
+            line,
+            Asc.scope.__punct__.map,
+            Asc.scope.__punct__.settings.punctuation || [],
+            false,
+          );
         if (picked.trim()) {
-          const out = picked.split(/\t|\n/).map(convertLine);
+          const sourceLines = picked.split(/\t|\n/);
+          const out = sourceLines.map(convertLine);
+          const changedLines = out.filter((line, index) => line !== sourceLines[index]).length;
           if (out[out.length - 1] === "") out.pop();
+          if (!changedLines) {
+            getInfoModal(tr("No punctuation needed conversion in the selection."));
+            return;
+          }
           Asc.scope._lines = out;
           plugin.callCommand(
             function () {
@@ -316,7 +344,7 @@
               }
             }, false, true, function () {
               getInfoModal(
-                tr("Converted selection: ") + out.length + tr(" line(s)."),
+                tr("Converted selection: ") + changedLines + tr(" line(s)."),
               );
             },
           );
@@ -326,21 +354,42 @@
         // =============== Excel 分支（命令体内重建转换函数！） ===============
         plugin.callCommand(
           function () {
-            function escIn(x) {
-              return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            function normalizeEllipsisIn(text) {
+              return String(text).replace(/(?:\.{3,}|\u2026+)/g, "\u2026\u2026");
+            }
+            function buildEnabledSet(chars) {
+              if (!chars || !chars.length) return null;
+              var set = {};
+              for (var i = 0; i < chars.length; i++) set[chars[i]] = true;
+              return set;
             }
             function convertIn(line) {
-				if (!line) return line;
-				var m = Asc.scope.__punct__.map;
-				var on = Asc.scope.__punct__.settings.punctuation || [];
-				var v = line.replace(/(?:\.{3,}|…+)/g, "……");
-              	for (var k in m) {
-					if (!m.hasOwnProperty(k)) continue;
-					var full = m[k];
-					if (on.length === 0 || on.indexOf(full) !== -1)
-						v = v.replace(new RegExp(escIn(k), "g"), full);
-					}
-              	return v;
+              if (!line) return line;
+              var map = Asc.scope.__punct__.map;
+              var enabled = buildEnabledSet(Asc.scope.__punct__.settings.punctuation || []);
+              var normalized = Array.from(normalizeEllipsisIn(line));
+              return normalized.map(function (ch) {
+                if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
+                var mapped = map[ch];
+                if (enabled && !enabled[mapped]) return ch;
+                return mapped;
+              }).join("");
+            }
+            function convertInHalf(line) {
+              if (!line) return line;
+              var map = Asc.scope.__punct__.map;
+              var enabledChars = Asc.scope.__punct__.settings.punctuation || [];
+              var enabled = enabledChars.length ? {} : null;
+              if (enabled) {
+                for (var i = 0; i < enabledChars.length; i++) enabled[enabledChars[i]] = true;
+              }
+              return Array.from(String(line).replace(/(?:\.{3,}|\u2026+)/g, "\u2026\u2026"))
+                .map(function (ch) {
+                  if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
+                  if (enabled && !enabled[ch]) return ch;
+                  return map[ch];
+                })
+                .join("");
             }
 
             try {
@@ -393,21 +442,42 @@
             // =============== PPT 分支（命令体内重建转换函数！） ===============
             plugin.callCommand(
               function () {
-                function escIn(x) {
-                  return x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                function normalizeEllipsisIn(text) {
+                  return String(text).replace(/(?:\.{3,}|\u2026+)/g, "\u2026\u2026");
+                }
+                function buildEnabledSet(chars) {
+                  if (!chars || !chars.length) return null;
+                  var set = {};
+                  for (var i = 0; i < chars.length; i++) set[chars[i]] = true;
+                  return set;
                 }
                 function convertIn(line) {
                   if (!line) return line;
-                  var m = Asc.scope.__punct__.map;
-                  var on = Asc.scope.__punct__.settings.punctuation || [];
-                  var v = line.replace(/(?:\.{3,}|…+)/g, "……");
-                  for (var k in m) {
-                    if (!m.hasOwnProperty(k)) continue;
-                    var full = m[k];
-                    if (on.length === 0 || on.indexOf(full) !== -1)
-                      v = v.replace(new RegExp(escIn(k), "g"), full);
+                  var map = Asc.scope.__punct__.map;
+                  var enabled = buildEnabledSet(Asc.scope.__punct__.settings.punctuation || []);
+                  var normalized = Array.from(normalizeEllipsisIn(line));
+                  return normalized.map(function (ch) {
+                    if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
+                    var mapped = map[ch];
+                    if (enabled && !enabled[mapped]) return ch;
+                    return mapped;
+                  }).join("");
+                }
+                function convertInHalf(line) {
+                  if (!line) return line;
+                  var map = Asc.scope.__punct__.map;
+                  var enabledChars = Asc.scope.__punct__.settings.punctuation || [];
+                  var enabled = enabledChars.length ? {} : null;
+                  if (enabled) {
+                    for (var i = 0; i < enabledChars.length; i++) enabled[enabledChars[i]] = true;
                   }
-                  return v;
+                  return Array.from(String(line).replace(/(?:\.{3,}|\u2026+)/g, "\u2026\u2026"))
+                    .map(function (ch) {
+                      if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
+                      if (enabled && !enabled[ch]) return ch;
+                      return map[ch];
+                    })
+                    .join("");
                 }
 
                 var sel = typeof Api.GetSelection === "function"
@@ -543,8 +613,13 @@
 
       plugin.executeMethod("GetSelectedText", [props], function (t) {
         const picked = t || "";
-
-        // 公用转换（编辑器侧，非命令体）
+        const convertLine2 = (line) =>
+          convertCharactersByMap(
+            line,
+            Asc.scope.__punct__.map,
+            Asc.scope.__punct__.settings.punctuation || [],
+            false,
+          );// 公用转换（编辑器侧，非命令体）
         const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const convertLine = (line) => {
           if (!line) return line;
@@ -560,8 +635,14 @@
         };
 
         if (picked.trim()) {
-          const out = picked.split(/\t|\n/).map(convertLine);
+          const sourceLines = picked.split(/\t|\n/);
+          const out = sourceLines.map(convertLine2);
+          const changedLines = out.filter((line, index) => line !== sourceLines[index]).length;
           if (out[out.length - 1] === "") out.pop();
+          if (!changedLines) {
+            getInfoModal(tr("No punctuation needed conversion in the selection."));
+            return;
+          }
           Asc.scope._lines = out;
           plugin.callCommand(
             function () {
@@ -570,7 +651,7 @@
               }
             }, false, true, function () {
               getInfoModal(
-                tr("Converted selection: ") + out.length + tr(" line(s)."),
+                tr("Converted selection: ") + changedLines + tr(" line(s)."),
               );
             },
           );
@@ -724,7 +805,7 @@
 
                     // 命中全角/省略号才处理
                     if ( /[，。；：‘’“”《》（）？！／—－…]/.test(old) || /…|\.{3,}/.test(old) ) {
-                      var neo = convertIn(old);
+                      var neo = convertInHalf(old);
                       if ( neo !== old && typeof p.Select === "function" && 
 						typeof Api.ReplaceTextSmart === "function" ) {
                         p.Select(); // 选中段落
@@ -934,7 +1015,7 @@
           isModal: true,
           isVisual: true,
           size: [560, 340],
-          EditorsSupport: ["word", "cell", "slide"],
+          EditorsSupport: ["word", "cell"],
           buttons: [
             { text: tr("Confirm"), primary: true },
             { text: tr("Cancel"), primary: false },
@@ -1093,7 +1174,7 @@
         isVisual: true,
         size: [450, 380],
         buttons: [{ text: tr("Save"), primary: false }],
-        EditorsSupport: ["word", "slide", "cell"],
+        EditorsSupport: ["word", "cell"],
       });
     });
   }
@@ -1202,8 +1283,9 @@
       isModal: true,
       isVisual: true,
       size: [400, 100],
-      EditorsSupport: ["word", "cell", "slide"],
+      EditorsSupport: ["word", "cell"],
       buttons: [{ text: tr("OK"), primary: true }],
     });
   }
 })(window);
+

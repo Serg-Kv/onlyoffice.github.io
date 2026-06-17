@@ -26,6 +26,35 @@
 			--selborder: #c9ecd7;
 			--seltext: #0a7a3b;
 			--warn: #b36b00;
+			--panel: #ffffff;
+			--panel-soft: #fafbfc;
+			--code: #fbfcfe;
+			--hover: #fcfdff;
+			--notice: #0a2a7a;
+			--danger-bg: #fff0f1;
+			--danger-line: #ffd5da;
+		}
+
+		body.theme-type-dark {
+			--bg: #1f2430;
+			--fg: #e5e7eb;
+			--muted: #aab2c5;
+			--soft: #2d3444;
+			--line: #495267;
+			--primary: #4f8cff;
+			--primary-weak: rgba(79, 140, 255, 0.16);
+			--danger: #ff9aa8;
+			--selbg: rgba(28, 126, 76, 0.22);
+			--selborder: rgba(93, 214, 153, 0.34);
+			--seltext: #8ee6b7;
+			--warn: #ffd27a;
+			--panel: #2a3140;
+			--panel-soft: #31394a;
+			--code: #252c3a;
+			--hover: #333b4d;
+			--notice: #d8e6ff;
+			--danger-bg: rgba(176, 0, 32, 0.18);
+			--danger-line: rgba(255, 154, 168, 0.35);
 		}
 
 		* {
@@ -74,7 +103,7 @@
 			padding: 8px 12px;
 			border-radius: 8px;
 			background: var(--primary-weak);
-			color: #0a2a7a;
+			color: var(--notice);
 			margin-top: 6px;
 			font-size: 13px;
 		}
@@ -91,7 +120,7 @@
 			position: sticky;
 			top: 0;
 			z-index: 5;
-			background: #fff;
+			background: var(--panel);
 			padding-bottom: 8px;
 			margin-bottom: 8px;
 			border-bottom: 1px solid var(--line);
@@ -102,7 +131,7 @@
 			gap: 12px;
 			flex-wrap: wrap;
 			font-size: 12px;
-			color: #333;
+			color: var(--fg);
 			margin: 6px 0 8px;
 		}
 
@@ -135,8 +164,8 @@
 		button {
 			appearance: none;
 			border: 1px solid var(--line);
-			background: #fff;
-			color: #111;
+			background: var(--panel);
+			color: var(--fg);
 			padding: 6px 10px;
 			border-radius: 8px;
 			cursor: pointer;
@@ -144,12 +173,12 @@
 		}
 
 		.toolbar button {
-			background: #fff;
+			background: var(--panel);
 			border-color: var(--line);
 		}
 
 		.toolbar button:hover {
-			background: #fafbfc;
+			background: var(--panel-soft);
 		}
 
 		button.primary {
@@ -159,8 +188,8 @@
 		}
 
 		button.danger {
-			background: #fff0f1;
-			border-color: #ffd5da;
+			background: var(--danger-bg);
+			border-color: var(--danger-line);
 			color: var(--danger);
 		}
 
@@ -174,15 +203,15 @@
 			width: 100%;
 			border-collapse: collapse;
 			border: 1px solid var(--line);
-			background: #fff
+			background: var(--panel)
 		}
 
 		thead th {
 			text-align: left;
 			font-weight: 600;
 			font-size: 12px;
-			color: #444;
-			background: #fafbfc;
+			color: var(--fg);
+			background: var(--panel-soft);
 			border-bottom: 1px solid var(--line);
 			padding: 8px;
 			position: sticky;
@@ -197,7 +226,7 @@
 		}
 
 		tbody tr:hover {
-			background: #fcfdff;
+			background: var(--hover);
 		}
 
 		.col-check {
@@ -206,7 +235,7 @@
 
 		.col-idx {
 			width: 64px;
-			color: #666
+			color: var(--muted)
 		}
 
 		.col-rule {
@@ -217,20 +246,20 @@
 			white-space: pre-wrap;
 			word-break: break-word;
 			font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-			background: #fbfcfe;
+			background: var(--code);
 			border: 1px solid var(--line);
 			border-radius: 6px;
 			padding: 6px 8px;
-			color: black;
+			color: var(--fg);
 		}
 
 		.changed {
-			background: #fff8e6;
-			border-color: #ffe3a6;
+			background: rgba(255, 227, 166, 0.22);
+			border-color: rgba(255, 227, 166, 0.45);
 		}
 
 		.empty {
-			color: #999;
+			color: var(--muted);
 			font-style: italic
 		}
 
@@ -247,7 +276,7 @@
 
 		.hint {
 			font-size: 12px;
-			color: #777
+			color: var(--muted)
 		}
 
 		.right {
@@ -418,9 +447,10 @@
 			function renderStat(total, changed, rows) {
 				const spaceRules = new Set([
 					'spaceBetweenMixedLang:add', 'spaceBetweenMixedLang:remove',
-					'numberUnitSpacing:add', 'numberUnitSpacing:remove',
-					'percentSpacing:add', 'percentSpacing:remove',
-					'symbolSpacing:add', 'symbolSpacing:remove'
+					'spaceZhNum:add', 'spaceZhNum:remove',
+					'spaceNumUnit:add', 'spaceNumUnit:remove',
+					'spacePercent:add', 'spacePercent:remove',
+					'spaceNumSymbol:add', 'spaceNumSymbol:remove'
 				]);
 				let spaceCount = 0, otherCount = 0;
 				rows.forEach(r => {
@@ -490,7 +520,7 @@
 				const hiddenRules = new Set(['fullwidthPunctuation', 'spaceBetweenMixedLang:add']);
 				const list = (errors || []).filter(e => !hiddenRules.has(e.rule));
 				const text = (list.length ? list : (errors || [])).map(e => e.message).join(' ; ');
-				wrap.innerHTML = `<div style="color:#555;font-size:12px">${escapeHTML(text || t('Formatting change (spacing/punctuation)'))}</div>`;
+				wrap.innerHTML = `<div style="color:var(--muted);font-size:12px">${escapeHTML(text || t('Formatting change (spacing/punctuation)'))}</div>`;
 				return wrap;
 			}
 
@@ -506,7 +536,13 @@
 					updateSelectedBadge();
 				};
 				document.getElementById('btnSelectSpace').onclick = () => {
-					const spaceRules = new Set(['spaceBetweenMixedLang:add', 'spaceBetweenMixedLang:remove', 'numberUnitSpacing:add', 'numberUnitSpacing:remove', 'percentSpacing:add', 'percentSpacing:remove']);
+					const spaceRules = new Set([
+						'spaceBetweenMixedLang:add', 'spaceBetweenMixedLang:remove',
+						'spaceZhNum:add', 'spaceZhNum:remove',
+						'spaceNumUnit:add', 'spaceNumUnit:remove',
+						'spacePercent:add', 'spacePercent:remove',
+						'spaceNumSymbol:add', 'spaceNumSymbol:remove'
+					]);
 					const isSpaceRow = (r) => (r.errors && r.errors.length) ? r.errors.some(e => spaceRules.has(e.rule)) : guessSpaceChange(r.original, r.fixed);
 					tbody.querySelectorAll('.row-check').forEach(ch => ch.checked = false);
 					Array.from(tbody.querySelectorAll('tr')).forEach(tr => {
@@ -577,8 +613,25 @@
 			if (window.__rerenderStat) window.__rerenderStat();
 		};
 
+		function applyTheme(theme) {
+			if (!window.Asc || !window.Asc.plugin) return;
+			if (typeof window.Asc.plugin.onThemeChangedBase === 'function') {
+				window.Asc.plugin.onThemeChangedBase(theme);
+			}
+		}
+
+		if (window.Asc && window.Asc.plugin) {
+			window.Asc.plugin.onThemeChanged = applyTheme;
+			if (typeof window.Asc.plugin.attachEvent === 'function') {
+				window.Asc.plugin.attachEvent('onThemeChanged', applyTheme);
+			}
+		}
+
 		window.Asc.plugin.init = function () {
 			window.Asc.plugin.sendToPlugin("onWindowReportReady", {});
+			if (window.Asc.plugin.theme) {
+				applyTheme(window.Asc.plugin.theme);
+			}
 			if (typeof window.Asc.plugin.onTranslate === 'function') {
 				window.Asc.plugin.onTranslate();
 			}
