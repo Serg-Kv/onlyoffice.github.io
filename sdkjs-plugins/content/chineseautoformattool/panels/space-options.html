@@ -122,7 +122,7 @@
 
 		.row .title {
 			font-weight: 600;
-			color: #111827;
+			color: var(--title);
 		}
 
 		.row .hint {
@@ -488,14 +488,44 @@
 	</script>
 	<script>
 		(function () {
+			function syncThemeClasses(theme) {
+				if (!document.body) return;
+
+				var classes = document.body.className.split(/\s+/).filter(Boolean);
+				classes.forEach(function (className) {
+					if (className.indexOf('theme-') === 0) {
+						document.body.classList.remove(className);
+					}
+				});
+
+				if (theme && theme.name) {
+					document.body.classList.add(theme.name);
+				}
+
+				document.body.classList.add('theme-type-' + ((theme && theme.type) || 'light'));
+				document.body.setAttribute('data-theme', (theme && theme.type) || 'light');
+				document.documentElement.style.colorScheme = (theme && theme.type) === 'dark' ? 'dark' : 'light';
+			}
+
 			function applyTheme(theme) {
 				if (!window.Asc || !window.Asc.plugin) return;
 				if (typeof window.Asc.plugin.onThemeChangedBase === 'function') {
 					window.Asc.plugin.onThemeChangedBase(theme);
 				}
+				syncThemeClasses(theme || window.Asc.plugin.theme || {});
 			}
 
 			if (window.Asc && window.Asc.plugin) {
+				var originalInit = window.Asc.plugin.init;
+				window.Asc.plugin.init = function () {
+					if (typeof originalInit === 'function') {
+						originalInit.apply(this, arguments);
+					}
+					if (window.Asc.plugin.theme) {
+						applyTheme(window.Asc.plugin.theme);
+					}
+				};
+
 				window.Asc.plugin.onThemeChanged = applyTheme;
 				if (typeof window.Asc.plugin.attachEvent === 'function') {
 					window.Asc.plugin.attachEvent('onThemeChanged', applyTheme);

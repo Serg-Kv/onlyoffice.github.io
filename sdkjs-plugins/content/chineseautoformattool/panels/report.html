@@ -618,6 +618,26 @@
 			if (typeof window.Asc.plugin.onThemeChangedBase === 'function') {
 				window.Asc.plugin.onThemeChangedBase(theme);
 			}
+			syncThemeClasses(theme || window.Asc.plugin.theme || {});
+		}
+
+		function syncThemeClasses(theme) {
+			if (!document.body) return;
+
+			var classes = document.body.className.split(/\s+/).filter(Boolean);
+			classes.forEach(function (className) {
+				if (className.indexOf('theme-') === 0) {
+					document.body.classList.remove(className);
+				}
+			});
+
+			if (theme && theme.name) {
+				document.body.classList.add(theme.name);
+			}
+
+			document.body.classList.add('theme-type-' + ((theme && theme.type) || 'light'));
+			document.body.setAttribute('data-theme', (theme && theme.type) || 'light');
+			document.documentElement.style.colorScheme = (theme && theme.type) === 'dark' ? 'dark' : 'light';
 		}
 
 		if (window.Asc && window.Asc.plugin) {

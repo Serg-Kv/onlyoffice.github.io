@@ -5,6 +5,10 @@ const tr = (s) =>
 // Initialize the plugin
 window.Asc.plugin.init = function() {};
 
+window.Asc.plugin.button = function() {
+    this.executeCommand("close", "");
+};
+
 // Context menu display event
 Asc.plugin.attachEvent("onContextMenuShow", (options) => {
     const items = {
