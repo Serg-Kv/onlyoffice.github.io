@@ -369,13 +369,26 @@
         NewLineSeparator: "\r",
       };
       plugin.executeMethod("GetSelectedText", [props], function (t) {
-        const picked = t || "";        const convertLine = (line) =>
-          convertCharactersByMap(
-            line,
-            Asc.scope.__punct__.map,
-            Asc.scope.__punct__.settings.punctuation || [],
-            true,
-          );
+        const picked = t || "";
+        const convertLine = (line) => {
+          const enabled = Asc.scope.__punct__.settings.punctuation || [];
+          const enabledSet = enabled.length ? new Set(enabled) : null;
+          const chars = Array.from(normalizeEllipsis(line || ""));
+          const nearestNonSpace = (index, step) => {
+            for (let cursor = index + step; cursor >= 0 && cursor < chars.length; cursor += step) {
+              if (!/\s/.test(chars[cursor])) return chars[cursor];
+            }
+            return "";
+          };
+          const isCjk = (ch) => /[㐀-䶿一-鿿〇]/.test(ch || "");
+          return chars.map((ch, index) => {
+            if (!Object.prototype.hasOwnProperty.call(Asc.scope.__punct__.map, ch)) return ch;
+            const mapped = Asc.scope.__punct__.map[ch];
+            if (enabledSet && !enabledSet.has(mapped)) return ch;
+            if (!isCjk(nearestNonSpace(index, -1)) && !isCjk(nearestNonSpace(index, 1))) return ch;
+            return mapped;
+          }).join("");
+        };
         if (picked.trim()) {
           const sourceLines = picked.split(/\t|\n/);
           const out = sourceLines.map(convertLine);
@@ -417,10 +430,20 @@
               var map = Asc.scope.__punct__.map;
               var enabled = buildEnabledSet(Asc.scope.__punct__.settings.punctuation || []);
               var normalized = Array.from(normalizeEllipsisIn(line));
-              return normalized.map(function (ch) {
+              function nearestNonSpace(index, step) {
+                for (var cursor = index + step; cursor >= 0 && cursor < normalized.length; cursor += step) {
+                  if (!/\s/.test(normalized[cursor])) return normalized[cursor];
+                }
+                return "";
+              }
+              function isCjk(ch) {
+                return /[㐀-䶿一-鿿〇]/.test(ch || "");
+              }
+              return normalized.map(function (ch, index) {
                 if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
                 var mapped = map[ch];
                 if (enabled && !enabled[mapped]) return ch;
+                if (!isCjk(nearestNonSpace(index, -1)) && !isCjk(nearestNonSpace(index, 1))) return ch;
                 return mapped;
               }).join("");
             }
