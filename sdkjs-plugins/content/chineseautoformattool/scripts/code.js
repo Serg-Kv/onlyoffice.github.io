@@ -200,6 +200,55 @@
     }).join("");
   }
 
+  function isCjkChar(ch) {
+    return /[㐀-䶿一-鿿〇]/.test(ch || "");
+  }
+
+  function hasCjkTextOnSide(chars, index, step) {
+    let sawToken = false;
+    for (let cursor = index + step; cursor >= 0 && cursor < chars.length; cursor += step) {
+      const ch = chars[cursor];
+      if (/\s/.test(ch)) {
+        continue;
+      }
+      if (isCjkChar(ch)) {
+        return true;
+      }
+      if (/[A-Za-z0-9]/.test(ch)) {
+        sawToken = true;
+        continue;
+      }
+      if (/[._-]/.test(ch) && sawToken) {
+        continue;
+      }
+      break;
+    }
+    return false;
+  }
+
+  function isFullWidthChineseContext(chars, index) {
+    return hasCjkTextOnSide(chars, index, -1) || hasCjkTextOnSide(chars, index, 1);
+  }
+
+  function convertCharactersInCjkContext(text, map, enabledChars, checkMappedChar = true) {
+    const enabled = enabledChars && enabledChars.length ? new Set(enabledChars) : null;
+    const chars = Array.from(normalizeEllipsis(text || ""));
+    return chars.map((ch, index) => {
+      if (!Object.prototype.hasOwnProperty.call(map, ch)) {
+        return ch;
+      }
+      const mapped = map[ch];
+      const settingsChar = checkMappedChar ? mapped : ch;
+      if (enabled && !enabled.has(settingsChar)) {
+        return ch;
+      }
+      if (!isFullWidthChineseContext(chars, index)) {
+        return ch;
+      }
+      return mapped;
+    }).join("");
+  }
+
   // 生成绝对 URL
   function resolveUrl(path) {
     try {
@@ -370,25 +419,12 @@
       };
       plugin.executeMethod("GetSelectedText", [props], function (t) {
         const picked = t || "";
-        const convertLine = (line) => {
-          const enabled = Asc.scope.__punct__.settings.punctuation || [];
-          const enabledSet = enabled.length ? new Set(enabled) : null;
-          const chars = Array.from(normalizeEllipsis(line || ""));
-          const nearestNonSpace = (index, step) => {
-            for (let cursor = index + step; cursor >= 0 && cursor < chars.length; cursor += step) {
-              if (!/\s/.test(chars[cursor])) return chars[cursor];
-            }
-            return "";
-          };
-          const isCjk = (ch) => /[㐀-䶿一-鿿〇]/.test(ch || "");
-          return chars.map((ch, index) => {
-            if (!Object.prototype.hasOwnProperty.call(Asc.scope.__punct__.map, ch)) return ch;
-            const mapped = Asc.scope.__punct__.map[ch];
-            if (enabledSet && !enabledSet.has(mapped)) return ch;
-            if (!isCjk(nearestNonSpace(index, -1)) && !isCjk(nearestNonSpace(index, 1))) return ch;
-            return mapped;
-          }).join("");
-        };
+        const convertLine = (line) =>
+          convertCharactersInCjkContext(
+            line,
+            Asc.scope.__punct__.map,
+            Asc.scope.__punct__.settings.punctuation || [],
+          );
         if (picked.trim()) {
           const sourceLines = picked.split(/\t|\n/);
           const out = sourceLines.map(convertLine);
@@ -430,20 +466,31 @@
               var map = Asc.scope.__punct__.map;
               var enabled = buildEnabledSet(Asc.scope.__punct__.settings.punctuation || []);
               var normalized = Array.from(normalizeEllipsisIn(line));
-              function nearestNonSpace(index, step) {
-                for (var cursor = index + step; cursor >= 0 && cursor < normalized.length; cursor += step) {
-                  if (!/\s/.test(normalized[cursor])) return normalized[cursor];
-                }
-                return "";
-              }
               function isCjk(ch) {
                 return /[㐀-䶿一-鿿〇]/.test(ch || "");
+              }
+              function hasCjkTextOnSide(index, step) {
+                var sawToken = false;
+                for (var cursor = index + step; cursor >= 0 && cursor < normalized.length; cursor += step) {
+                  var ch = normalized[cursor];
+                  if (/\s/.test(ch)) {
+                    continue;
+                  }
+                  if (isCjk(ch)) return true;
+                  if (/[A-Za-z0-9]/.test(ch)) {
+                    sawToken = true;
+                    continue;
+                  }
+                  if (/[._-]/.test(ch) && sawToken) continue;
+                  break;
+                }
+                return false;
               }
               return normalized.map(function (ch, index) {
                 if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
                 var mapped = map[ch];
                 if (enabled && !enabled[mapped]) return ch;
-                if (!isCjk(nearestNonSpace(index, -1)) && !isCjk(nearestNonSpace(index, 1))) return ch;
+                if (!hasCjkTextOnSide(index, -1) && !hasCjkTextOnSide(index, 1)) return ch;
                 return mapped;
               }).join("");
             }
@@ -528,10 +575,32 @@
                   var map = Asc.scope.__punct__.map;
                   var enabled = buildEnabledSet(Asc.scope.__punct__.settings.punctuation || []);
                   var normalized = Array.from(normalizeEllipsisIn(line));
-                  return normalized.map(function (ch) {
+                  function isCjk(ch) {
+                    return /[㐀-䶿一-鿿〇]/.test(ch || "");
+                  }
+                  function hasCjkTextOnSide(index, step) {
+                    var sawToken = false;
+                    for (var cursor = index + step; cursor >= 0 && cursor < normalized.length; cursor += step) {
+                      var ch = normalized[cursor];
+                      if (/\s/.test(ch)) {
+                        if (!sawToken) continue;
+                        break;
+                      }
+                      if (isCjk(ch)) return true;
+                      if (/[A-Za-z0-9]/.test(ch)) {
+                        sawToken = true;
+                        continue;
+                      }
+                      if (/[._-]/.test(ch) && sawToken) continue;
+                      break;
+                    }
+                    return false;
+                  }
+                  return normalized.map(function (ch, index) {
                     if (!Object.prototype.hasOwnProperty.call(map, ch)) return ch;
                     var mapped = map[ch];
                     if (enabled && !enabled[mapped]) return ch;
+                    if (!hasCjkTextOnSide(index, -1) && !hasCjkTextOnSide(index, 1)) return ch;
                     return mapped;
                   }).join("");
                 }
