@@ -115,6 +115,12 @@
     refreshToolbarMenu();
   };
 
+  window.Asc.plugin.onThemeChanged = function (theme) {
+    __toolbarRefreshPending = true;
+    refreshToolbarMenu();
+    broadcastThemeToChildWindows(theme);
+  };
+
   function refreshToolbarMenu() {
     if (
       !__toolbarRefreshPending &&
@@ -144,6 +150,38 @@
 
   function normalizeEllipsis(text, replacement = "……") {
     return String(text).replace(/(?:\.{3,}|…+)/g, replacement);
+  }
+
+  function expandPunctuationSelection(map, chars) {
+    if (!Array.isArray(chars) || chars.length === 0) return [];
+
+    const reverseMap = {};
+    Object.keys(map).forEach((source) => {
+      reverseMap[map[source]] = source;
+    });
+
+    const expanded = new Set();
+    chars.forEach((char) => {
+      expanded.add(char);
+      if (Object.prototype.hasOwnProperty.call(map, char)) {
+        expanded.add(map[char]);
+      }
+      if (Object.prototype.hasOwnProperty.call(reverseMap, char)) {
+        expanded.add(reverseMap[char]);
+      }
+    });
+
+    return Array.from(expanded);
+  }
+
+  function broadcastThemeToChildWindows(theme) {
+    [winSetting, winOptions, winReport, winInfo].forEach((childWindow) => {
+      try {
+        if (childWindow && typeof childWindow.command === "function") {
+          childWindow.command("onThemeChanged", theme);
+        }
+      } catch (e) {}
+    });
   }
 
   function convertCharactersByMap(text, map, enabledChars, checkMappedChar = true) {
@@ -295,7 +333,29 @@
           "?": "？",
           "!": "！",
         },
-        settings: { punctuation: readJSON("selectedPunctuation", []) },
+        settings: {
+          punctuation: expandPunctuationSelection({
+            ",": "，",
+            ";": "；",
+            ":": "：",
+            ".": "。",
+            '"': "”",
+            "'": "’",
+            "-": "—",
+            "–": "—",
+            $: "＄",
+            "¥": "￥",
+            "£": "￡",
+            "¢": "￠",
+            "<": "《",
+            ">": "》",
+            "(": "（",
+            ")": "）",
+            "/": "／",
+            "?": "？",
+            "!": "！",
+          }, readJSON("selectedPunctuation", [])),
+        },
       };
 
       // 选中文本：优先用 ReplaceTextSmart（保留样式）
@@ -309,23 +369,12 @@
         NewLineSeparator: "\r",
       };
       plugin.executeMethod("GetSelectedText", [props], function (t) {
-        const picked = t || "";
-        // 公用转换（编辑器侧，非命令体）
-        const esc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        const convertLine = (line) =>
+        const picked = t || "";        const convertLine = (line) =>
           convertCharactersByMap(
             line,
             Asc.scope.__punct__.map,
             Asc.scope.__punct__.settings.punctuation || [],
             true,
-          );
-
-        const convertLine2 = (line) =>
-          convertCharactersByMap(
-            line,
-            Asc.scope.__punct__.map,
-            Asc.scope.__punct__.settings.punctuation || [],
-            false,
           );
         if (picked.trim()) {
           const sourceLines = picked.split(/\t|\n/);
@@ -597,7 +646,31 @@
           "／": "/",
         },
         // 开关：为空表示全部处理；否则只处理设置中选中的“全角目标字符”
-        settings: { punctuation: readJSON("selectedPunctuation", []) },
+        settings: {
+          punctuation: expandPunctuationSelection({
+            "，": ",",
+            "；": ";",
+            "：": ":",
+            "。": ".",
+            "“": '"',
+            "”": '"',
+            "‘": "'",
+            "’": "'",
+            "—": "-",
+            "－": "-",
+            "＄": "$",
+            "￥": "¥",
+            "￡": "£",
+            "￠": "¢",
+            "《": "<",
+            "》": ">",
+            "（": "(",
+            "）": ")",
+            "？": "?",
+            "！": "!",
+            "／": "/",
+          }, readJSON("selectedPunctuation", [])),
+        },
       };
 
       // —— 选中文本：优先用 ReplaceTextSmart（保留样式）

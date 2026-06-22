@@ -26,6 +26,8 @@
 			--selborder: #c9ecd7;
 			--seltext: #0a7a3b;
 			--warn: #b36b00;
+			--warn-bg: #fff7e6;
+			--warn-line: #ffe6b3;
 			--panel: #ffffff;
 			--panel-soft: #fafbfc;
 			--code: #fbfcfe;
@@ -35,6 +37,7 @@
 			--danger-line: #ffd5da;
 		}
 
+		html.theme-type-dark,
 		body.theme-type-dark {
 			--bg: #1f2430;
 			--fg: #e5e7eb;
@@ -47,7 +50,9 @@
 			--selbg: rgba(28, 126, 76, 0.22);
 			--selborder: rgba(93, 214, 153, 0.34);
 			--seltext: #8ee6b7;
-			--warn: #ffd27a;
+			--warn: #ffe0a3;
+			--warn-bg: rgba(179, 107, 0, 0.24);
+			--warn-line: rgba(255, 210, 122, 0.38);
 			--panel: #2a3140;
 			--panel-soft: #31394a;
 			--code: #252c3a;
@@ -64,6 +69,7 @@
 		html,
 		body {
 			height: 100vh;
+			background: var(--bg);
 		}
 
 		body {
@@ -144,8 +150,8 @@
 		}
 
 		.badge.warn {
-			background: #fff7e6;
-			border-color: #ffe6b3;
+			background: var(--warn-bg);
+			border-color: var(--warn-line);
 			color: var(--warn)
 		}
 
@@ -621,23 +627,37 @@
 			syncThemeClasses(theme || window.Asc.plugin.theme || {});
 		}
 
+		function resolveThemeType(theme) {
+			const rawType = String((theme && theme.type) || '').toLowerCase();
+			if (rawType.indexOf('dark') !== -1) return 'dark';
+			if (rawType.indexOf('light') !== -1) return 'light';
+
+			const rawName = String((theme && (theme.name || theme.Name)) || '').toLowerCase();
+			if (rawName.indexOf('dark') !== -1 || rawName.indexOf('night') !== -1) return 'dark';
+			return 'light';
+		}
+
 		function syncThemeClasses(theme) {
 			if (!document.body) return;
 
-			var classes = document.body.className.split(/\s+/).filter(Boolean);
-			classes.forEach(function (className) {
-				if (className.indexOf('theme-') === 0) {
-					document.body.classList.remove(className);
+			var themeType = resolveThemeType(theme);
+			var themeName = String((theme && (theme.name || theme.Name)) || '');
+			[document.documentElement, document.body].forEach(function (node) {
+				var classes = node.className.split(/\s+/).filter(Boolean);
+				classes.forEach(function (className) {
+					if (className.indexOf('theme-') === 0) {
+						node.classList.remove(className);
+					}
+				});
+
+				if (themeName) {
+					node.classList.add(themeName);
 				}
+
+				node.classList.add('theme-type-' + themeType);
+				node.setAttribute('data-theme', themeType);
 			});
-
-			if (theme && theme.name) {
-				document.body.classList.add(theme.name);
-			}
-
-			document.body.classList.add('theme-type-' + ((theme && theme.type) || 'light'));
-			document.body.setAttribute('data-theme', (theme && theme.type) || 'light');
-			document.documentElement.style.colorScheme = (theme && theme.type) === 'dark' ? 'dark' : 'light';
+			document.documentElement.style.colorScheme = themeType === 'dark' ? 'dark' : 'light';
 		}
 
 		if (window.Asc && window.Asc.plugin) {

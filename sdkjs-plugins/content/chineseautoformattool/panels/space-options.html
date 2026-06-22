@@ -23,6 +23,7 @@
 			--ring: #cdd9ff;
 		}
 
+		html.theme-type-dark,
 		body.theme-type-dark {
 			--bg: #1f2430;
 			--card: #2a3140;
@@ -191,20 +192,20 @@
 			background: linear-gradient(to top, rgba(246, 248, 251, 1), rgba(246, 248, 251, 0));
 		}
 
-		body.theme-type-dark .card {
+		.theme-type-dark .card {
 			box-shadow: 0 10px 30px rgba(0, 0, 0, .22);
 		}
 
-		body.theme-type-dark .switch .track {
+		.theme-type-dark .switch .track {
 			background: #4b5565;
 			border-color: #5a6478;
 		}
 
-		body.theme-type-dark .switch .thumb {
+		.theme-type-dark .switch .thumb {
 			background: #f8fafc;
 		}
 
-		body.theme-type-dark .actions {
+		.theme-type-dark .actions {
 			background: linear-gradient(to top, rgba(31, 36, 48, 1), rgba(31, 36, 48, 0));
 		}
 
@@ -488,23 +489,37 @@
 	</script>
 	<script>
 		(function () {
-			function syncThemeClasses(theme) {
-				if (!document.body) return;
+			function resolveThemeType(theme) {
+			const rawType = String((theme && theme.type) || '').toLowerCase();
+			if (rawType.indexOf('dark') !== -1) return 'dark';
+			if (rawType.indexOf('light') !== -1) return 'light';
 
-				var classes = document.body.className.split(/\s+/).filter(Boolean);
+			const rawName = String((theme && (theme.name || theme.Name)) || '').toLowerCase();
+			if (rawName.indexOf('dark') !== -1 || rawName.indexOf('night') !== -1) return 'dark';
+			return 'light';
+		}
+
+		function syncThemeClasses(theme) {
+			if (!document.body) return;
+
+			var themeType = resolveThemeType(theme);
+			var themeName = String((theme && (theme.name || theme.Name)) || '');
+			[document.documentElement, document.body].forEach(function (node) {
+				var classes = node.className.split(/\s+/).filter(Boolean);
 				classes.forEach(function (className) {
 					if (className.indexOf('theme-') === 0) {
-						document.body.classList.remove(className);
+						node.classList.remove(className);
 					}
 				});
 
-				if (theme && theme.name) {
-					document.body.classList.add(theme.name);
+				if (themeName) {
+					node.classList.add(themeName);
 				}
 
-				document.body.classList.add('theme-type-' + ((theme && theme.type) || 'light'));
-				document.body.setAttribute('data-theme', (theme && theme.type) || 'light');
-				document.documentElement.style.colorScheme = (theme && theme.type) === 'dark' ? 'dark' : 'light';
+				node.classList.add('theme-type-' + themeType);
+				node.setAttribute('data-theme', themeType);
+			});
+			document.documentElement.style.colorScheme = themeType === 'dark' ? 'dark' : 'light';
 			}
 
 			function applyTheme(theme) {
