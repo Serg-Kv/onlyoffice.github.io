@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.4
+
+* Removed legacy slide/PPT code paths so the plugin explicitly targets only Documents and Spreadsheets.
+
 ## 1.1.3
 
 * Refined Force Full-width context detection so only punctuation in Chinese or mixed Chinese text is counted as converted, while plain English selections stay untouched.
