@@ -560,7 +560,8 @@
 				};
 
 				function applySelectedAndClose() {
-					const applyLines = buildApplyResult(rows, base || original.slice(), fixed, true);
+					const applyBase = Array.isArray(base) && base.length ? base : original.slice();
+					const applyLines = buildApplyResult(rows, applyBase, fixed, true);
 					if (!applyLines) {
 						showToast(t('Cannot apply: selection line count invalid'));
 						return;

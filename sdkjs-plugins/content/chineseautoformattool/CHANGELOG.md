@@ -1,5 +1,9 @@
 # Change Log
 
+## 1.1.5
+
+* Fixed Apply & Save in web editors so the report falls back to the original selection when no explicit base lines are provided.
+
 ## 1.1.4
 
 * Removed legacy slide/PPT code paths so the plugin explicitly targets only Documents and Spreadsheets.
