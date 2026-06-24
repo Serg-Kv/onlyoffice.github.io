@@ -797,9 +797,10 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
   try {
     // Convert JavaScript Date to Excel serial number
     // Excel dates are days since December 30, 1899
-    const excelEpoch = new Date(1899, 11, 30);
+    const selectedDateUTC = Date.UTC(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate());
+    const excelEpochUTC = Date.UTC(1899, 11, 30);
     const excelSerialNumber = Math.floor(
-      (selectedDate - excelEpoch) / (24 * 60 * 60 * 1000)
+      (selectedDateUTC - excelEpochUTC) / (24 * 60 * 60 * 1000)
     );
 
     // Store the date value, format and keep cell formatting option in Asc.scope
@@ -820,26 +821,63 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
           return false;
         }
 
+        // Helper function to check if format is Currency or Percentage
+        function shouldPreserveFormat(cell) {
+          if (!cell) return false;
+          try {
+            var currentFormat = cell.GetNumberFormat();
+            if (!currentFormat || currentFormat === 'General' || currentFormat === '@') {
+              return false;
+            }
+            // Check for percentage format (contains %)
+            if (currentFormat.includes('%')) {
+              return true;
+            }
+            // Check for currency format
+            if (currentFormat.includes('[$')) {
+              return true;
+            }
+            return false;
+          } catch (e) {
+            return false;
+          }
+        }
+
         var oSelection = oWorksheet.GetSelection();
         if (!oSelection) {
           var oActiveCell = oWorksheet.GetActiveCell();
           if (oActiveCell) {
+            // Skip if cell has Currency/Percentage number format and keepCellFromatting is enabled
+            if (keepCellFromatting && shouldPreserveFormat(oActiveCell)) {
+              return true;
+            }
             if (!keepCellFromatting) {
               oActiveCell.Clear();
             }
-            oActiveCell.SetValue(dateValue);
             oActiveCell.SetNumberFormat(formatCode);
+            oActiveCell.SetValue(dateValue);
             return true;
           }
           return false;
         }
 
-        // If keepCellFromatting is false, clear the cell formatting first
-        if (!keepCellFromatting) {
-          oSelection.Clear();
-        }
-        oSelection.SetValue(dateValue);
-        oSelection.SetNumberFormat(formatCode);
+        // Process each cell in the selection individually
+        oSelection.ForEach(function(cell) {
+          if (keepCellFromatting) {
+            // "Keep formatting" is ON
+            if (shouldPreserveFormat(cell)) {
+              return; // Skip Currency/Percentage cells entirely
+            }
+            // Other cells: keep visual styles, just insert date
+            cell.SetNumberFormat(formatCode);
+            cell.SetValue(dateValue);
+          } else {
+            // "Keep formatting" is OFF - clear everything and insert date
+            cell.Clear();
+            cell.SetNumberFormat(formatCode);
+            cell.SetValue(dateValue);
+          }
+        });
         return true;
       } catch (e) {
         return false;
