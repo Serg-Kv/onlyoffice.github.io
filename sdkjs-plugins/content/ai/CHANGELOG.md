@@ -1,5 +1,10 @@
 # Change Log
 
+## 4.0.0
+
+* Include Generate mock data in the spreadsheet AI tools bundle.
+* Validate the generated row count and release editor actions on request failure.
+
 ## 1.0.0
 
 * Initial release.
