@@ -1,5 +1,10 @@
 # Change Log
 
+## 4.0.1
+
+* Add Insert Note to presentation AI tools, with console diagnostics for both literal and generated notes.
+* Report invalid inputs and unavailable note APIs; release editor actions on AI request failure.
+
 ## 4.0.0
 
 * Include Generate mock data in the spreadsheet AI tools bundle.
