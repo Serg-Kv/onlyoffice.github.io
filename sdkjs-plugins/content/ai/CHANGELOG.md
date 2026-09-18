@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.2
+
+* Integrate the revised mock data generator with bounded row counts, explicit range errors and single-row headers.
+* Protect existing target values and formulas, close actions on request failures, and treat header text as inert data.
+* Handle single-cell headers and retain test diagnostics.
+
 ## 4.0.1
 
 * Add Insert Note to presentation AI tools, with console diagnostics for both literal and generated notes.
