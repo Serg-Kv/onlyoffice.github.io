@@ -34,22 +34,22 @@
 	let func = new RegisteredFunction({
 		"name": "addNoteToSlide",
 		"text": "Insert Note",
-		"description": "Adds a note to the slide. If intent is passed in the text parameter, precise text is added to the notes. If intent is passed in the request parameters, it interpreted as an LLM prompt",
+		"description": "Adds speaker notes to a presentation slide. Use for requests to add, write, generate or summarize talking points, presenter notes, or a speaking script. Defaults to the currently open slide when no slide number is given, including requests for this slide. Use text for exact wording or request to generate notes from the slide text and tables. Call once per slide when targeting multiple slides.",
 		"parameters": {
 			"type": "object",
 			"properties": {
 				"slideNumber": {
-					"type": "number",
-					"description": "Slide number to add note to",
+					"type": "integer",
+					"description": "Optional one-based slide number. Omit for this slide or the current slide. Defaults to the currently open slide.",
 					"minimum": 1
 				},
 				"text": {
 					"type": "string",
-					"description": "text to add to the note"
+					"description": "Exact text to append to speaker notes. Use only when the user supplies the wording; do not also pass request."
 				},
 				"request": {
 					"type": "string",
-					"description": "LLM prompt describing what the user intends to add to the notes"
+					"description": "Instructions to generate talking points, speaker notes or a speaking script from the slide content. Do not also pass text."
 				}
 			},
 			"required": []
@@ -63,6 +63,12 @@
 				"prompt": "add talking points to slide 2",
 				"arguments": { "slideNumber": 2, "request": "add talking points to slide 2" }
 			},
+			{ "prompt": "generate talking points for this slide", "arguments": { "request": "Generate talking points from this slide" } },
+			{ "prompt": "generate talking points for slide 2", "arguments": { "slideNumber": 2, "request": "Generate talking points from the slide" } },
+			{ "prompt": "Write speaker notes for the current slide", "arguments": { "request": "Write speaker notes from this slide" } },
+			{ "prompt": "Create a short speaking script for this slide", "arguments": { "request": "Create a short speaking script from this slide" } },
+			{ "prompt": "Summarize the table on this slide in the notes", "arguments": { "request": "Summarize the slide table in speaker notes" } },
+			{ "prompt": "Add a note to this slide: Remember to thank the audience", "arguments": { "text": "Remember to thank the audience" } },
 		]
 	});
 
@@ -92,7 +98,7 @@
 					return { error: "invalid_text_and_request" };
 				}
 
-				if (Asc.scope.params.slideNumber) {
+				if (Asc.scope.params.slideNumber !== undefined) {
 					slide = presentation.GetSlideByIndex(Asc.scope.params.slideNumber - 1);
 					if (!slide) return { error: "slide_not_found", slidesCount: presentation.GetSlidesCount() };
 				}
@@ -102,6 +108,11 @@
 
 				if (!slide) return { error: "no_current_slide" };
 				console.log("[addNoteToSlide] slide resolved", slide.GetSlideIndex());
+				if (typeof slide.AddNotesText !== "function") return { error: "notes_api_unavailable" };
+				if (Asc.scope.params.text) {
+					if (!slide.AddNotesText(Asc.scope.params.text)) return { error: "failed_to_add_note" };
+					return { status: "ok", slideIndex: slide.GetSlideIndex(), textLength: Asc.scope.params.text.length };
+				}
 
 				// Fetch slide content for LLM case
 				if (Asc.scope.params.request) {
@@ -142,20 +153,23 @@
 						for (let i = 0; i < aTables.length; i++) {
 							let table = aTables[i];
 							let rows = [];
-							let nRows = table.GetRowsCount ? table.GetRowsCount() : 0;
-							let nCols = table.GetColsCount ? table.GetColsCount() : 0;
-							for (let r = 0; r < nRows; r++) {
+							let k = 0;
+							let rowObj = table.GetRow(k++);
+							while (rowObj) {
 								let row = [];
-								for (let c = 0; c < nCols; c++) {
-									let cell = table.GetCell(r, c);
+								for (let c = 0; c < rowObj.GetCellsCount(); c++) {
+									let cell = rowObj.GetCell(c);
 									let text = "";
-									if (cell && cell.GetContent) {
+									if (cell && typeof cell.GetText === "function") {
+										text = cell.GetText();
+									} else if (cell && cell.GetContent) {
 										let content = cell.GetContent();
 										if (content && content.GetText) text = content.GetText();
 									}
 									row.push(text);
 								}
 								rows.push(row);
+								rowObj = table.GetRow(k++);
 							}
 							tableResults.push(rows);
 						}
@@ -169,10 +183,15 @@
 					console.log("[addNoteToSlide] extracted context", slideContent);
 				}
 				return {
-					slideContentObj: slideContent
+					slideContentObj: slideContent,
+					slideIndex: slide.GetSlideIndex()
 				};
 			});
 			console.log("[addNoteToSlide] slide lookup result", callResult);
+			if (callResult && callResult.error === "notes_api_unavailable")
+				throw new window.AgentState.ToolError("This editor does not provide slide.AddNotesText.");
+			if (callResult && callResult.error === "failed_to_add_note")
+				throw new window.AgentState.ToolError("Failed to add the note.");
 			if (!callResult || callResult.error === "no_current_slide") {
 				throw new window.AgentState.ToolError("No current slide is available.");
 			}
@@ -188,7 +207,13 @@
 			}
 
 
-			// Should be null or empty if LLM branch.
+			if (params.text) {
+				console.log("[addNoteToSlide] completed in one editor call", callResult);
+				return callResult;
+			}
+			// Resolve once so a selection change during generation cannot redirect the note.
+			Asc.scope.noteTargetIndex = callResult.slideIndex;
+			Asc.scope.params = { ...params };
 			var text = Asc.scope.params.text;
 
 			if (Asc.scope.params.request) {
@@ -216,18 +241,20 @@
 				}
 
 				await Asc.Editor.callMethod("StartAction", ["Block", "AI (" + requestEngine.modelUI.name + ")"]);
-				await Asc.Editor.callMethod("StartAction", ["GroupActions"]);
+				let groupStarted = false;
 
 				try {
-				text = await requestEngine.chatRequest(llmPrompt, false, async function (data) {
-					if (!data)
-						return;
-					await checkEndAction();
-				});
-
+					await Asc.Editor.callMethod("StartAction", ["GroupActions"]);
+					groupStarted = true;
+					text = await requestEngine.chatRequest(llmPrompt, false);
+				} catch (error) {
+					throw new window.AgentState.ToolError("AI note generation failed: " + (error && error.message || String(error)));
 				} finally {
-					await checkEndAction();
-					await Asc.Editor.callMethod("EndAction", ["GroupActions"]);
+					try {
+						await checkEndAction();
+					} finally {
+						if (groupStarted) await Asc.Editor.callMethod("EndAction", ["GroupActions"]);
+					}
 					console.log("[addNoteToSlide] AI actions released");
 				}
 				console.log("[addNoteToSlide] AI response", text);
@@ -241,14 +268,7 @@
 				// Push result to notes
 				let text = Asc.scope.addNotesResult;
 				let presentation = Api.GetPresentation();
-				let slide;
-				if (Asc.scope.params.slideNumber) {
-					slide = presentation.GetSlideByIndex(Asc.scope.params.slideNumber - 1);
-					if (!slide) return { error: "slide_not_found", slidesCount: presentation.GetSlidesCount() };
-				}
-				else {
-					slide = presentation.GetCurrentSlide();
-				}
+				let slide = presentation.GetSlideByIndex(Asc.scope.noteTargetIndex);
 				if (!slide) return { error: "no_current_slide" };
 				if (typeof slide.AddNotesText !== "function") return { error: "notes_api_unavailable" };
 				if (!slide.AddNotesText(text)) {
@@ -278,6 +298,7 @@
 		} finally {
 			delete Asc.scope.params;
 			delete Asc.scope.addNotesResult;
+			delete Asc.scope.noteTargetIndex;
 		}
 	};
 

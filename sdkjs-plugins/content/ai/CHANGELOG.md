@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.3
+
+* Expand Insert Note metadata for talking points, speaker notes and the current slide.
+* Insert literal notes in one editor call and keep the resolved slide index during AI generation.
+* Read presentation table rows and report AI failures while releasing editor actions.
+
 ## 4.0.2
 
 * Integrate the revised mock data generator with bounded row counts, explicit range errors and single-row headers.
