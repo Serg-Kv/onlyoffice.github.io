@@ -34,271 +34,243 @@
 	let func = new RegisteredFunction({
 		"name": "addNoteToSlide",
 		"text": "Insert Note",
-		"description": "Adds speaker notes to a presentation slide. Use for requests to add, write, generate or summarize talking points, presenter notes, or a speaking script. Defaults to the currently open slide when no slide number is given, including requests for this slide. Use text for exact wording or request to generate notes from the slide text and tables. Call once per slide when targeting multiple slides.",
+		"description": `Adds a note to the slide. This function is particularly useful for adding speaker notes or additional context to a slide to aid in presentations.
+		If intent is passed in the text parameter, precise text is added to the notes.
+		If intent is passed in the request parameters, it interpreted as an LLM prompt. 
+		If the request is meant to target multiple slides, call this function once for each slide.`,
 		"parameters": {
 			"type": "object",
 			"properties": {
 				"slideNumber": {
-					"type": "integer",
-					"description": "Optional one-based slide number. Omit for this slide or the current slide. Defaults to the currently open slide.",
+					"type": "number",
+					"description": "the slide number to add text to (optional, default current slide)",
 					"minimum": 1
 				},
 				"text": {
 					"type": "string",
-					"description": "Exact text to append to speaker notes. Use only when the user supplies the wording; do not also pass request."
+					"description": "Precise text to add to the note"
 				},
 				"request": {
 					"type": "string",
-					"description": "Instructions to generate talking points, speaker notes or a speaking script from the slide content. Do not also pass text."
+					"description": "LLM prompt describing what the user intends to add to the notes"
 				}
 			},
 			"required": []
 		},
 		"examples": [
 			{
-				"prompt": "add a note with the following content to slide 3: Hello, world!",
+				"prompt": "write a note with the following content to slide 3: Hello, world!",
 				"arguments": { "slideNumber": 3, "text": "Hello, world!" }
 			},
 			{
 				"prompt": "add talking points to slide 2",
 				"arguments": { "slideNumber": 2, "request": "add talking points to slide 2" }
 			},
-			{ "prompt": "generate talking points for this slide", "arguments": { "request": "Generate talking points from this slide" } },
-			{ "prompt": "generate talking points for slide 2", "arguments": { "slideNumber": 2, "request": "Generate talking points from the slide" } },
-			{ "prompt": "Write speaker notes for the current slide", "arguments": { "request": "Write speaker notes from this slide" } },
-			{ "prompt": "Create a short speaking script for this slide", "arguments": { "request": "Create a short speaking script from this slide" } },
-			{ "prompt": "Summarize the table on this slide in the notes", "arguments": { "request": "Summarize the slide table in speaker notes" } },
-			{ "prompt": "Add a note to this slide: Remember to thank the audience", "arguments": { "text": "Remember to thank the audience" } },
+			{
+				"prompt": "make a note with AI content",
+				"arguments": { "request": "make a note with AI content" }
+			},
+			{
+				"prompt": "Write speaker notes",
+				"arguments": { "request": "write speaker notes" }
+			},
+			{
+				"prompt": "create a speaking script.",
+				"arguments": { "request": "create a speaking script." }
+			},
+			{
+				"prompt": "generate talking points for this slide",
+				"arguments": { "request": "generate talking points for this slide" }
+			},
 		]
 	});
 
 	func.call = async function (params) {
-		console.log("[addNoteToSlide] start", params);
-		try {
-			params = params || {};
-			if (params.slideNumber !== undefined && (!Number.isInteger(params.slideNumber) || params.slideNumber < 1)) {
-				throw new window.AgentState.ToolError("slideNumber must be a positive integer.");
+		Asc.scope.params = params;
+		if (!Asc.scope.params.text && !Asc.scope.params.request) {
+			throw new window.AgentState.ToolError("No text was passed to the addNoteToSlide")
+		}
+		if (Asc.scope.params.text && Asc.scope.params.request) {
+			throw new window.AgentState.ToolError("Only one of 'text' or 'request' should be provided")
+		}
+		if ('slideNumber' in Asc.scope.params && (typeof Asc.scope.params.slideNumber !== 'number' || Asc.scope.params.slideNumber < 1)) {
+			throw new window.AgentState.ToolError("Invalid slide number. Please provide a positive integer slide number.");
+		}
+
+		// Read, compute and validate parameters
+		let callResult = await Asc.Editor.callCommand(function () {
+
+			let presentation = Api.GetPresentation();
+			let slide;
+			if (Asc.scope.params.slideNumber) {
+				slide = presentation.GetSlideByIndex(Asc.scope.params.slideNumber - 1);
+				if (!slide) return { error: "slide_not_found", slidesCount: presentation.GetSlidesCount() };
 			}
-			for (const key of ["text", "request"]) {
-				if (params[key] !== undefined && (typeof params[key] !== "string" || !params[key].trim())) {
-					throw new window.AgentState.ToolError(key + " must be a non-empty string.");
-				}
-			}
-			console.log("[addNoteToSlide] mode", params.request ? "AI-generated notes" : "literal text");
-			Asc.scope.params = params;
-			// Read, compute and validate parameters
-			let callResult = await Asc.Editor.callCommand(function () {
-				let presentation = Api.GetPresentation();
-				let slide;
-				let slideContent;
-				if (!Asc.scope.params.text && !Asc.scope.params.request) {
-					return { error: "missing_text" };
-				}
-				if (Asc.scope.params.text && Asc.scope.params.request) {
-					return { error: "invalid_text_and_request" };
-				}
-
-				if (Asc.scope.params.slideNumber !== undefined) {
-					slide = presentation.GetSlideByIndex(Asc.scope.params.slideNumber - 1);
-					if (!slide) return { error: "slide_not_found", slidesCount: presentation.GetSlidesCount() };
-				}
-				else {
-					slide = presentation.GetCurrentSlide();
-				}
-
-				if (!slide) return { error: "no_current_slide" };
-				console.log("[addNoteToSlide] slide resolved", slide.GetSlideIndex());
-				if (typeof slide.AddNotesText !== "function") return { error: "notes_api_unavailable" };
-				if (Asc.scope.params.text) {
-					if (!slide.AddNotesText(Asc.scope.params.text)) return { error: "failed_to_add_note" };
-					return { status: "ok", slideIndex: slide.GetSlideIndex(), textLength: Asc.scope.params.text.length };
-				}
-
-				// Fetch slide content for LLM case
-				if (Asc.scope.params.request) {
-
-					// Get slide content. Tolerate errors.
-					let shapesContent = [];
-					let shapes = slide.GetAllShapes();
-					for (let i = 0; i < shapes.length; i++) {
-						let shape = shapes[i];
-						let shapeText = "";
-						try {
-							let content = shape.GetDocContent();
-							if (content) {
-								let count = content.GetElementsCount();
-								let parts = [];
-								for (let j = 0; j < count; j++) {
-									let el = content.GetElement(j);
-									if (el && el.GetText) {
-										parts.push(el.GetText());
-									}
-								}
-								shapeText = parts.join("\n");
-							}
-						}
-						// Tolerate failures reading slide content
-						catch (e) {
-							console.warn("[addNoteToSlide] could not read shape", i, String(e));
-						}
-						if (shapeText) shapesContent.push(shapeText);
-					}
-
-					let shapesResult = shapesContent.join("\n\n");
-
-					// Get slide content from tables. Tolerate errors.
-					let tableResults = [];
-					try {
-						let aTables = slide.GetAllTables();
-						for (let i = 0; i < aTables.length; i++) {
-							let table = aTables[i];
-							let rows = [];
-							let k = 0;
-							let rowObj = table.GetRow(k++);
-							while (rowObj) {
-								let row = [];
-								for (let c = 0; c < rowObj.GetCellsCount(); c++) {
-									let cell = rowObj.GetCell(c);
-									let text = "";
-									if (cell && typeof cell.GetText === "function") {
-										text = cell.GetText();
-									} else if (cell && cell.GetContent) {
-										let content = cell.GetContent();
-										if (content && content.GetText) text = content.GetText();
-									}
-									row.push(text);
-								}
-								rows.push(row);
-								rowObj = table.GetRow(k++);
-							}
-							tableResults.push(rows);
-						}
-					}
-					catch (e) {
-						console.warn("[addNoteToSlide] could not read tables", String(e));
-					}
-					let tableJsonContents = JSON.stringify(tableResults);
-
-					slideContent = "Plain text of the slide: " + shapesResult + "\n\n" + "Contents of tables on the slide: " + tableJsonContents;
-					console.log("[addNoteToSlide] extracted context", slideContent);
-				}
-				return {
-					slideContentObj: slideContent,
-					slideIndex: slide.GetSlideIndex()
-				};
-			});
-			console.log("[addNoteToSlide] slide lookup result", callResult);
-			if (callResult && callResult.error === "notes_api_unavailable")
-				throw new window.AgentState.ToolError("This editor does not provide slide.AddNotesText.");
-			if (callResult && callResult.error === "failed_to_add_note")
-				throw new window.AgentState.ToolError("Failed to add the note.");
-			if (!callResult || callResult.error === "no_current_slide") {
-				throw new window.AgentState.ToolError("No current slide is available.");
+			else {
+				slide = presentation.GetCurrentSlide();
 			}
 
-			if (callResult && callResult.error === "slide_not_found") {
-				throw new window.AgentState.ToolError("Slide " + params.slideNumber + " does not exist! The presentation has " + callResult.slidesCount + " slides.");
-			}
-			if (callResult && callResult.error === "missing_text") {
-				throw new window.AgentState.ToolError("No text was passed to the addNoteToSlide");
-			}
-			if (callResult && callResult.error === "invalid_text_and_request") {
-				throw new window.AgentState.ToolError("Pass either text or request, not both.");
-			}
+			if (!slide) return { error: "no_current_slide" };
 
 
-			if (params.text) {
-				console.log("[addNoteToSlide] completed in one editor call", callResult);
-				return callResult;
-			}
-			// Resolve once so a selection change during generation cannot redirect the note.
-			Asc.scope.noteTargetIndex = callResult.slideIndex;
-			Asc.scope.params = { ...params };
-			var text = Asc.scope.params.text;
+			// If text is passed, return early here.
+			if (Asc.scope.params.text) {
+				if (!slide.AddNotesText(Asc.scope.params.text)) {
+					return { error: "failed_to_add_note", text: Asc.scope.params.text, slideNumber: slide.GetSlideIndex() }
+				}
+				return;
 
+			}
+
+			let slideContent;
+			// Fetch slide content for LLM case
 			if (Asc.scope.params.request) {
 
-				// Create LLM request
-				let llmPrompt =
-					`You are an AI chatbox. You are tasked to generate notes to a specific slide of a presentation.
-						To do that, you should primarily follow the user's request which is: ${Asc.scope.params.request}
-						To enrich your output, you should use the slide's content: ${callResult.slideContentObj}
-						Note that the slide contents and tables, may be empty.
-						Do note make stuff up. If there is not enough context to generate notes, simply return "Not enough content"
-						If the request and presentation are not in english try to detect the language and match it in your output.
-						`
-				let requestEngine = AI.Request.create(AI.ActionType.Chat);
-				if (!requestEngine)
-					throw new window.AgentState.ToolError("No Chat model is configured for generating notes.");
-				console.log("[addNoteToSlide] AI request", { model: requestEngine.modelUI.name, prompt: llmPrompt });
-
-				let isSendedEndLongAction = false;
-				async function checkEndAction() {
-					if (!isSendedEndLongAction) {
-						await Asc.Editor.callMethod("EndAction", ["Block", "AI (" + requestEngine.modelUI.name + ")"]);
-						isSendedEndLongAction = true;
-					}
-				}
-
-				await Asc.Editor.callMethod("StartAction", ["Block", "AI (" + requestEngine.modelUI.name + ")"]);
-				let groupStarted = false;
-
-				try {
-					await Asc.Editor.callMethod("StartAction", ["GroupActions"]);
-					groupStarted = true;
-					text = await requestEngine.chatRequest(llmPrompt, false);
-				} catch (error) {
-					throw new window.AgentState.ToolError("AI note generation failed: " + (error && error.message || String(error)));
-				} finally {
+				// Get slide content. Tolerate errors.
+				let shapesContent = [];
+				let shapes = slide.GetAllShapes();
+				for (let i = 0; i < shapes.length; i++) {
+					let shape = shapes[i];
+					let shapeText = "";
 					try {
-						await checkEndAction();
-					} finally {
-						if (groupStarted) await Asc.Editor.callMethod("EndAction", ["GroupActions"]);
+						let content = shape.GetDocContent();
+						if (content) {
+							let count = content.GetElementsCount();
+							let parts = [];
+							for (let j = 0; j < count; j++) {
+								let el = content.GetElement(j);
+								if (el && el.GetText) {
+									parts.push(el.GetText());
+								}
+							}
+							shapeText = parts.join("\n");
+						}
 					}
-					console.log("[addNoteToSlide] AI actions released");
+					// Tolerate failures reading slide content
+					catch (e) {
+					}
+					if (shapeText) shapesContent.push(shapeText);
 				}
-				console.log("[addNoteToSlide] AI response", text);
-			}
-			if (typeof text !== "string" || !text.trim()) {
-				throw new window.AgentState.ToolError("No note text was produced.");
-			}
-			console.log("[addNoteToSlide] inserting note", { slideNumber: params.slideNumber, text: text });
-			Asc.scope.addNotesResult = text;
-			callResult = await Asc.Editor.callCommand(function () {
-				// Push result to notes
-				let text = Asc.scope.addNotesResult;
-				let presentation = Api.GetPresentation();
-				let slide = presentation.GetSlideByIndex(Asc.scope.noteTargetIndex);
-				if (!slide) return { error: "no_current_slide" };
-				if (typeof slide.AddNotesText !== "function") return { error: "notes_api_unavailable" };
-				if (!slide.AddNotesText(text)) {
-					return { error: "failed_to_add_note", text: text, slideNumber: slide.GetSlideIndex() }
-				}
-				return { status: "ok", slideIndex: slide.GetSlideIndex(), textLength: text.length };
-			});
-			console.log("[addNoteToSlide] insertion result", callResult);
-			if (!callResult || callResult.error === "no_current_slide") {
-				throw new window.AgentState.ToolError("No current slide is available for note insertion.");
-			}
-			if (callResult.error === "notes_api_unavailable") {
-				throw new window.AgentState.ToolError("This editor does not provide slide.AddNotesText.");
-			}
 
-			if (callResult && callResult.error === "failed_to_add_note") {
-				throw new window.AgentState.ToolError("failed to add note. Parametes: Text: " + callResult.text + ", slideNumber: " + callResult.slideNumber);
+				let shapesResult = shapesContent.join("\n\n");
+
+				// Get slide content from tables. Tolerate errors.
+				let tableResults = [];
+				try {
+					let aTables = slide.GetAllTables();
+					for (let i = 0; i < aTables.length; i++) {
+						let table = aTables[i];
+						let rows = [];
+						let k = 0;
+						let rowObj = table.GetRow(k++);
+						while (rowObj) {
+							let row = [];
+							let nCols = rowObj.GetCellsCount();
+							for (let c = 0; c < nCols; c++) {
+								let cell = rowObj && rowObj.GetCell ? rowObj.GetCell(c) : null;
+								let cellText = cell && cell.GetText ? cell.GetText() : "";
+								row.push(cellText);
+							}
+							rows.push(row);
+							rowObj = table.GetRow(k++);
+						}
+						tableResults.push(rows);
+					}
+				}
+				catch (e) {
+				}
+				let tableJsonContents = JSON.stringify(tableResults);
+
+				slideContent = "Plain text of the slide: " + shapesResult + "\n\n" + "Contents of tables on the slide: " + tableJsonContents;
 			}
-			if (callResult && callResult.error === "slide_not_found") {
-				throw new window.AgentState.ToolError("Slide " + params.slideNumber + " does not exist! The presentation has " + callResult.slidesCount + " slides.");
+			return {
+				slideContentObj: slideContent,
+				slideNumber: slide.GetSlideIndex()
+			};
+		});
+		if (callResult && callResult.error === "failed_to_add_note") {
+			throw new window.AgentState.ToolError("failed to add note. Parametes: Text: " + callResult.text + ", slideNumber: " + callResult.slideNumber);
+		}
+		if (callResult && callResult.error === "slide_not_found") {
+			throw new window.AgentState.ToolError("Slide " + params.slideNumber + " does not exist! The presentation has " + callResult.slidesCount + " slides.");
+		}
+		if (callResult && callResult.error === "no_current_slide") {
+			throw new window.AgentState.ToolError("No current slide available.");
+		}
+
+		// If text is passed, we are done. Otherwise, we continue to LLM case.
+		if (Asc.scope.params.text) return;
+
+		var text = '';
+
+		// Create LLM request
+		let llmPrompt =
+			`You are an AI chatbot. You are tasked to generate notes to a specific slide of a presentation. 
+					To do that, you should primarily follow the user's request which is: ${Asc.scope.params.request}
+					To enrich your output, you should use the slide's content: ${callResult.slideContentObj}
+					Note that the slide's content and tables may be empty. 
+					Do note make stuff up. If there is not enough context to generate notes, simply return "Not enough content"
+					If the request and presentation are not in english try to detect the language and match it in your output. 
+					`
+		let requestEngine = AI.Request.create(AI.ActionType.Chat);
+		if (!requestEngine)
+			throw new window.AgentState.ToolError("Request engine is not available for the action type: " + AI.ActionType.Chat);
+
+		let isSendedEndLongAction = false;
+		async function checkEndAction() {
+			if (!isSendedEndLongAction) {
+				await Asc.Editor.callMethod("EndAction", ["Block", "AI (" + requestEngine.modelUI.name + ")"]);
+				isSendedEndLongAction = true;
 			}
-			console.log("[addNoteToSlide] completed", callResult);
-			return callResult;
-		} catch (error) {
-			console.error("[addNoteToSlide] failed", error);
-			throw error;
-		} finally {
-			delete Asc.scope.params;
-			delete Asc.scope.addNotesResult;
-			delete Asc.scope.noteTargetIndex;
+		}
+
+		await Asc.Editor.callMethod("StartAction", ["Block", "AI (" + requestEngine.modelUI.name + ")"]);
+
+		try {
+			await Asc.Editor.callMethod("StartAction", ["GroupActions"]);
+		}
+		catch (error) {
+			await checkEndAction();
+			throw new window.AgentState.ToolError("Failed to start group actions. Error: " + error.message);
+		}
+
+		try {
+			text = await requestEngine.chatRequest(llmPrompt, false, async function (data) {
+				if (!data)
+					return;
+				await checkEndAction();
+			});
+		}
+		catch (error) {
+			// If the request fails, we still want to end the action and group actions before throwing the error.
+			await checkEndAction();
+			await Asc.Editor.callMethod("EndAction", ["GroupActions"]);
+			throw new window.AgentState.ToolError("Failed to generate notes for the slide. Error: " + error.message);
+		}
+		await checkEndAction();
+		await Asc.Editor.callMethod("EndAction", ["GroupActions"]);
+
+		Asc.scope.addNotesResult = text;
+		Asc.scope.addNotesResolvedSlideNumber = callResult.slideNumber;
+		callResult = await Asc.Editor.callCommand(function () {
+			// Push result to notes
+			let text = Asc.scope.addNotesResult;
+			let slideNumber = Asc.scope.addNotesResolvedSlideNumber;
+			let presentation = Api.GetPresentation();
+			let slide;
+			slide = presentation.GetSlideByIndex(slideNumber);
+			if (!slide) return { error: "slide_not_found", slidesCount: presentation.GetSlidesCount() };
+
+			if (!slide.AddNotesText(text)) {
+				return { error: "failed_to_add_note", text: text, slideNumber: slide.GetSlideIndex() }
+			}
+		})
+
+		if (callResult && callResult.error === "failed_to_add_note") {
+			throw new window.AgentState.ToolError("failed to add note. Parametes: Text: " + callResult.text + ", slideNumber: " + callResult.slideNumber);
+		}
+		if (callResult && callResult.error === "slide_not_found") {
+			throw new window.AgentState.ToolError("Slide " + Asc.scope.addNotesResolvedSlideNumber + " does not exist. It was removed from the presentation before the operation could be completed. The presentation has " + callResult.slidesCount + " slides.");
 		}
 	};
 

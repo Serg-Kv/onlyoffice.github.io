@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.4
+
+* Publish the student's fourth Insert Note revision unchanged for web testing.
+* Include the current-slide prompt example and cleanup on group-action startup failure.
+* Known limitations: content-only table cells are omitted and slide-number validation is not integer-safe.
+
 ## 4.0.3
 
 * Expand Insert Note metadata for talking points, speaker notes and the current slide.
