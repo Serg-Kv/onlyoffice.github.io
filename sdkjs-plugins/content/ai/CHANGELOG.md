@@ -1,5 +1,11 @@
 # Change Log
 
+## 4.0.5
+
+* Test build: integrate Matheus's mock-data tool at 3c65d7cdd unchanged, plus its display-name translations.
+* Limit output to 100 rows and 50 columns; trim trailing empty headers and pre-check occupied targets.
+* Known safety gaps: separate final check/write commands, active-sheet changes, and group-action startup cleanup.
+
 ## 4.0.4
 
 * Publish the student's fourth Insert Note revision unchanged for web testing.
