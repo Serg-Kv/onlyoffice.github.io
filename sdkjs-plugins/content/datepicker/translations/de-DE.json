@@ -8,6 +8,8 @@
   "Loading plugin...": "Plugin wird geladen...",
   "Initializing plugin...": "Plugin wird initialisiert...",
   "Keep cell formatting": "Behalten Sie die Zellenformatierung bei",
+  "Keep cell number format": "Zahlenformat der Zelle beibehalten",
+  "Failed to insert date. Please try again.": "Datum konnte nicht eingefügt werden. Bitte versuchen Sie es erneut.",
   "Inserting date...": "Datum wird eingefügt...",
   "Please <strong>do not close</strong> the plugin panel.": "Bitte <strong>schließen Sie nicht</strong> das Plugin-Panel.",
   "January": "Januar",

@@ -8,6 +8,8 @@
   "Loading plugin...": "Загрузка плагина...",
   "Initializing plugin...": "Инициализация плагина...",
   "Keep cell formatting": "Сохранить форматирование ячейки",
+  "Keep cell number format": "Сохранить числовой формат ячейки",
+  "Failed to insert date. Please try again.": "Не удалось вставить дату. Повторите попытку.",
   "Inserting date...": "Вставка даты...",
   "Please <strong>do not close</strong> the plugin panel.": "Пожалуйста, <strong>не закрывайте</strong> панель плагина.",
   "January": "Январь",

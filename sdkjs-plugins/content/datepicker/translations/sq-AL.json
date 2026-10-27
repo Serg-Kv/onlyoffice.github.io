@@ -8,6 +8,8 @@
   "Loading plugin...": "Duke ngarkuar plugin-in...",
   "Initializing plugin...": "Duke inicializuar plugin-in...",
   "Keep cell formatting": "Ruaj formatimin e qelizës",
+  "Keep cell number format": "Ruaj formatin numerik të qelizës",
+  "Failed to insert date. Please try again.": "Futja e datës dështoi. Ju lutemi provoni përsëri.",
   "Inserting date...": "Duke futur datën...",
   "Please <strong>do not close</strong> the plugin panel.": "Ju lutem <strong>mos e mbyllni</strong> panelin e plugin-it.",
   "January": "Janar",

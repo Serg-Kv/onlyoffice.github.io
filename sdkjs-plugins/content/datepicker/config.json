@@ -16,12 +16,12 @@
     "zh": "日期选择器"
   },
   "guid": "asc.{409e5493-56ae-45e1-8423-c73c84a06c50}",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "A plugin to insert formatted dates into cells.",
   "descriptionLocale": {
     "cs": "Plugin pro vkládání formátovaných dat do buněk.",
     "de": "Ein Plugin zum Einfügen formatierter Daten in Zellen.",
-    "es": "Un complemento para insertar fechas formateadas en celdas.",
+    "es": "Un plugin para insertar fechas formateadas en celdas.",
     "fr": "Un plugin pour insérer des dates formatées dans les cellules.",
     "it": "Un plugin per inserire date formattate nelle celle.",
     "ja": "セルにフォーマットされた日付を挿入するプラグイン。",

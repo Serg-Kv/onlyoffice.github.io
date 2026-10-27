@@ -8,6 +8,8 @@
   "Loading plugin...": "Učitavanje dodatka...",
   "Initializing plugin...": "Inicijalizacija dodatka...",
   "Keep cell formatting": "Zadrži formatiranje ćelije",
+  "Keep cell number format": "Zadrži brojni format ćelije",
+  "Failed to insert date. Please try again.": "Ubacivanje datuma nije uspelo. Pokušajte ponovo.",
   "Inserting date...": "Ubacivanje datuma...",
   "Please <strong>do not close</strong> the plugin panel.": "Molimo <strong>ne zatvarajte</strong> panel dodatka.",
   "January": "Januar",

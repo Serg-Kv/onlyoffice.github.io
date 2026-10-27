@@ -106,6 +106,25 @@
             font-size: 15px;
             font-weight: bold;
         }
+
+        .pinyin-layout {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+
+        .pinyin-layout .layout-label {
+            font-weight: bold;
+        }
+
+        .layout-option {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
     </style>
 </head>
 
@@ -114,6 +133,17 @@
         <h5 id="operatorHints">Please select the text you want to operate and click the corresponding operation button.</h5>
         <button id="button1" class="btn" onclick="action('convertChineseToFan')">Simplified → Traditional</button>
         <button id="button2" class="btn" onclick="action('convertFanToChinese')">Traditional → Simplified</button>
+        <div class="pinyin-layout">
+            <span class="layout-label" id="pinyinLayoutLabel">Pinyin layout</span>
+            <label class="layout-option">
+                <input type="radio" name="pinyinLayout" id="pinyinDefault" value="default" checked />
+                <span id="pinyinDefaultLabel">Default</span>
+            </label>
+            <label class="layout-option">
+                <input type="radio" name="pinyinLayout" id="pinyinInline" value="inline" />
+                <span id="pinyinInlineLabel">Inline</span>
+            </label>
+        </div>
         <button id="button3" class="btn2" onclick="action('addPinyin')">Add pinyin</button>
         <button id="button4" class="btn2" onclick="action('removePinyin')">Remove pinyin</button>
         <div class="myHint">

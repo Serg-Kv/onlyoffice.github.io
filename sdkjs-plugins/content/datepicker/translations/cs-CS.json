@@ -8,6 +8,8 @@
   "Loading plugin...": "Načítání pluginu...",
   "Initializing plugin...": "Inicializace pluginu...",
   "Keep cell formatting": "Udržujte formátování buněk",
+  "Keep cell number format": "Zachovat číselný formát buňky",
+  "Failed to insert date. Please try again.": "Datum se nepodařilo vložit. Zkuste to prosím znovu.",
   "Inserting date...": "Vkládání data...",
   "Please <strong>do not close</strong> the plugin panel.": "Prosím <strong>nezavírejte</strong> panel pluginu.",
   "January": "Leden",
