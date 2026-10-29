@@ -4,7 +4,7 @@
         "zh": "简繁转换器"
     },
     "offered": "Lumi",
-    "version": "1.1.1",
+    "version": "1.1.6",
     "guid": "asc.{beccf103-f417-49f7-9575-d1a206f60127}",
     "variations": [{
         "description": "Convert between Simplified and Traditional Chinese",

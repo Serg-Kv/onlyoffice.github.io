@@ -29,7 +29,7 @@ Asc.plugin.attachEvent("onContextMenuShow", (options) => {
                     text: { zh: "添加拼音（括号）", en: "Add pinyin (inline)" },
                 },
                 {
-                    id: "addPinyinAbove",
+                    id: "addPinyinDefault",
                     text: { zh: "添加拼音（默认）", en: "Add pinyin (default)" },
                 },
                 {
@@ -96,7 +96,7 @@ function selectedPinyinMode() {
 
 function action(id) {
     if (id === "addPinyin" && selectedPinyinMode() === "default") {
-        id = "addPinyinAbove";
+        id = "addPinyinDefault";
     }
     handleTextOperation(id);
 }
@@ -107,11 +107,25 @@ function core(id, selectedText) {
         replaceTranslatedText(selectedText, fileType, 'cn', 'tw');
     } else if (id == "convertFanToChinese") {
         replaceTranslatedText(selectedText, fileType, 'tw', 'cn');
-    } else if (id == "addPinyin" || id == "addPinyinAbove") {
-        const mode = id == "addPinyinAbove" ? "default" : "inline";
-        replaceTextSmart(addPinyinAnnotations(selectedText, mode));
+    } else if (id == "addPinyin" || id == "addPinyinDefault") {
+        const mode = id == "addPinyinDefault" ? "default" : "inline";
+        // Word paragraphs are mutated directly (insert/delete/set text) instead of
+        // going through Api.ReplaceTextSmart, which can neither write into an
+        // already-empty paragraph nor shrink the selection's paragraph count - both
+        // of which are needed here: blank paragraphs are common in real documents,
+        // the "Default" layout grows 1 paragraph into 2, and removing it shrinks
+        // that pair back down to 1.
+        if (fileType === 'word' && typeof selectedText === 'string') {
+            applyWordPinyinOperation(selectedText, mode === "default" ? "add-default" : "add-inline");
+        } else {
+            replaceTextSmart(addPinyinAnnotations(selectedText, mode));
+        }
     } else if (id == "removePinyin") {
-        replaceTextSmart(removePinyinAnnotations(selectedText));
+        if (fileType === 'word' && typeof selectedText === 'string') {
+            applyWordPinyinOperation(selectedText, "remove");
+        } else {
+            replaceTextSmart(removePinyinAnnotations(selectedText));
+        }
     }
     showToast(tr("Success!"));
 }
@@ -147,6 +161,111 @@ function replaceTextSmart(replacementText){
     });
 }
 
+// Word-mode pinyin add/remove: mutate the selected paragraphs directly instead of
+// Api.ReplaceTextSmart, which can't write into empty paragraphs or shrink their count.
+// Text is computed here (in the plugin context); callCommand only applies the result.
+function applyWordPinyinOperation(selectedText, mode) {
+    // GetSelectedText ends with a trailing separator, so drop the resulting empty
+    // entry (like textSeperator/paragraphCount do) to match GetAllParagraphs() below.
+    const paragraphsText = String(selectedText).split("\n");
+    if (paragraphsText.length > 0 && paragraphsText[paragraphsText.length - 1] === "") {
+        paragraphsText.pop();
+    }
+    const instructions = buildPinyinInstructions(paragraphsText, mode);
+    Asc.scope.pinyinInstructions = instructions;
+    window.Asc.plugin.callCommand(function () {
+        var oRange = Api.GetDocument().GetRangeBySelect();
+        if (!oRange) {
+            return false;
+        }
+        var paragraphs = oRange.GetAllParagraphs();
+        var instructions = Asc.scope.pinyinInstructions;
+        // Safety check: only proceed if the live paragraph count matches what was
+        // computed from the plain selected text. If they disagree (e.g. an unusual
+        // selection shape), do nothing rather than risk misaligned edits.
+        if (!paragraphs || !instructions || paragraphs.length !== instructions.length) {
+            return false;
+        }
+        // Process from the last paragraph to the first: deleting or inserting next to
+        // a paragraph never changes the position of paragraphs before it that have
+        // not been processed yet.
+        for (var i = paragraphs.length - 1; i >= 0; i--) {
+            var oPara = paragraphs[i];
+            var instr = instructions[i];
+            if (!instr || instr.action === "none") {
+                continue;
+            }
+            if (instr.action === "delete") {
+                oPara.Delete();
+                continue;
+            }
+            if (instr.action === "settext") {
+                oPara.RemoveAllElements();
+                oPara.AddText(instr.lines[0]);
+                continue;
+            }
+            if (instr.action === "insert") {
+                var anchor = oPara;
+                for (var k = instr.lines.length - 2; k >= 0; k--) {
+                    anchor = anchor.InsertParagraph(instr.lines[k], "before", true);
+                }
+                oPara.RemoveAllElements();
+                oPara.AddText(instr.lines[instr.lines.length - 1]);
+            }
+        }
+        return true;
+    });
+}
+
+// Builds a per-paragraph instruction array for a pinyin operation (passed via
+// Asc.scope into callCommand). Processed as a whole array, not paragraph-by-paragraph,
+// because deleting a marker paragraph also requires stripping the alignment padding
+// (U+2002/U+2007) from the character paragraph right after it.
+function buildPinyinInstructions(paragraphsText, mode) {
+    const isMarkerLine = paragraphsText.map(t => t.indexOf(PINYIN_DEFAULT_MARKER) === 0);
+    const cleanedTexts = paragraphsText.slice();
+    for (let i = 0; i < cleanedTexts.length; i++) {
+        if (isMarkerLine[i] && cleanedTexts[i + 1] !== undefined) {
+            cleanedTexts[i + 1] = cleanedTexts[i + 1].replace(/[\u2002\u2007]/g, "");
+        }
+    }
+    return cleanedTexts.map((text, i) => {
+        // A paragraph generated by "Add pinyin (Default)" is tagged with our marker; it
+        // only ever holds the pinyin line, so it is always safe to delete outright.
+        if (isMarkerLine[i]) {
+            return { action: "delete" };
+        }
+        const original = paragraphsText[i];
+        const cleaned = stripInlinePinyin(text);
+        if (mode === "remove" || !/[\u4e00-\u9fa5]/.test(cleaned)) {
+            return cleaned !== original ? { action: "settext", lines: [cleaned] } : { action: "none" };
+        }
+        if (mode === "add-inline") {
+            return { action: "settext", lines: [annotateInlineForParagraph(cleaned)] };
+        }
+        // "add-default" (Default layout)
+        const lines = annotateDefault(cleaned);
+        return lines.length > 1 ? { action: "insert", lines } : { action: "settext", lines };
+    });
+}
+
+// Same per-character inline annotation as addInlinePinyin's string branch, but for a
+// single already-isolated paragraph's text.
+function annotateInlineForParagraph(text) {
+    const filteredPinyins = addPinyin(text);
+    let idx = 0, result = '';
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (/[\u4e00-\u9fa5]/.test(ch)) {
+            result += `${ch}(${filteredPinyins[idx]})`;
+            idx++;
+        } else {
+            result += ch;
+        }
+    }
+    return result;
+}
+
 function textSeperator(text) {
     const result = text.split(/\n/).map(line => line.replace('\r', '\n'));
     if (result.length > 0 && result[result.length - 1] === '')result.pop();
@@ -156,9 +275,12 @@ function textSeperator(text) {
 function addPinyinAnnotations(text, mode) {
     const source = text;
     text = stripExistingPinyin(text);
-    const annotated = mode === "default" ? addPinyinAbove(text) : addInlinePinyin(text);
+    const annotated = mode === "default" ? addPinyinDefault(text) : addInlinePinyin(text);
     if (typeof source === "string") {
-        const count = paragraphCount(source);
+        // Pad against the paragraph count AFTER removing existing annotations, not the
+        // original (pre-strip) source. Otherwise a removed annotation paragraph keeps
+        // getting replaced by a blank paragraph every time the layout is switched.
+        const count = paragraphCount(text);
         while (annotated.length < count) {
             annotated.push("");
         }
@@ -168,9 +290,9 @@ function addPinyinAnnotations(text, mode) {
 
 function stripExistingPinyin(text) {
     if (typeof text !== "string") {
-        return text.map(row => row.map(cell => removePinyinFromPlain(cell, false).join("\n")));
+        return text.map(row => row.map(cell => removePinyinFromPlain(cell).join("\n")));
     }
-    return removePinyinFromPlain(text, false).join("\n");
+    return removePinyinFromPlain(text).join("\n");
 }
 
 function paragraphCount(text) {
@@ -223,6 +345,12 @@ function addInlinePinyin(text) {
     return result;
 }
 
+// pinyin-pro's built-in dictionary doesn't cover every 行(háng) compound word
+// (e.g. it knows 换行/行首/行尾 but not 断行); patch in the ones found to be missing manually here.
+if (typeof pinyinPro.addDict === "function") {
+    pinyinPro.addDict({ "断行": "duàn háng" });
+}
+
 function addPinyin(text){
     // 1. 使用 pinyin-pro 一次性获取整段文字的拼音数组
     const pinyins = pinyinPro.pinyin(text, {
@@ -260,8 +388,12 @@ function padCenter(text, width) {
     return "\u2007".repeat(left) + text + "\u2007".repeat(gap - left);
 }
 
+// Invisible marker prepended to a generated "default" pinyin line so it can be
+// reliably identified and removed later, without guessing from its content.
+const PINYIN_DEFAULT_MARKER = "\u200B";
+
 // One syllable above each Chinese character. Other characters stay on the lower line.
-function buildAboveLine(line, pinyins, idx) {
+function buildDefaultLine(line, pinyins, idx) {
     let pinyinLine = "";
     let characterLine = "";
     let hanCount = 0;
@@ -287,33 +419,35 @@ function buildAboveLine(line, pinyins, idx) {
         return { lines: [line], idx: idx };
     }
     // Each string becomes its own paragraph. A break inside one string is inserted as a space.
+    // Only the generated pinyin line is trimmed/marked; the character line keeps the
+    // source text (including any trailing whitespace) untouched.
     return {
-        lines: [pinyinLine.replace(/\s+$/, ""), characterLine.replace(/\s+$/, "")],
+        lines: [PINYIN_DEFAULT_MARKER + pinyinLine.replace(/\s+$/, ""), characterLine],
         idx: idx
     };
 }
 
-function addPinyinAbove(text) {
+function addPinyinDefault(text) {
     if (typeof text !== "string") {
         const result = [];
         for (let i = 0; i < text.length; i++) {
             text[i].forEach(element => {
-                result.push(annotateAbove(String(element)).join("\n"));
+                result.push(annotateDefault(String(element)).join("\n"));
             });
         }
         return result;
     }
-    return annotateAbove(text);
+    return annotateDefault(text);
 }
 
-function annotateAbove(text) {
+function annotateDefault(text) {
     const paragraphs = textSeperator(text);
     const lines = [];
     paragraphs.forEach(paragraph => {
         const pinyins = addPinyin(paragraph);
         let idx = 0;
         paragraph.split(/\r|\n/).forEach(line => {
-            const built = buildAboveLine(line, pinyins, idx);
+            const built = buildDefaultLine(line, pinyins, idx);
             idx = built.idx;
             built.lines.forEach(part => lines.push(part));
         });
@@ -322,12 +456,10 @@ function annotateAbove(text) {
 }
 
 function stripInlinePinyin(text) {
-    return text.replace(/([\u4e00-\u9fa5])\([^)]*\)/g, "$1");
-}
-
-function countHan(text) {
-    const matches = text.match(/[\u4e00-\u9fa5]/g);
-    return matches ? matches.length : 0;
+    // Only strip parens that actually contain a pinyin syllable.
+    return text.replace(/([\u4e00-\u9fa5])\(([^)]*)\)/g, (match, han, content) =>
+        isPinyinSyllable(content) ? han : match
+    );
 }
 
 const PINYIN_SYLLABLES = new Set("a ai an ang ao ba bai ban bang bao bei ben beng bi bian biao bie bin bing bo bu ca cai can cang cao ce cen ceng cha chai chan chang chao che chen cheng chi chong chou chu chua chuai chuan chuang chui chun chuo ci cong cou cu cuan cui cun cuo da dai dan dang dao de dei den deng di dia dian diao die ding diu dong dou du duan dui dun duo e ei en eng er fa fan fang fei fen feng fo fou fu ga gai gan gang gao ge gei gen geng gong gou gu gua guai guan guang gui gun guo ha hai han hang hao he hei hen heng hm hng hong hou hu hua huai huan huang hui hun huo ji jia jian jiang jiao jie jin jing jiong jiu ju juan jue jun ka kai kan kang kao ke kei ken keng kong kou ku kua kuai kuan kuang kui kun kuo la lai lan lang lao le lei leng li lia lian liang liao lie lin ling liu lo long lou lu luan lun luo lv lve m ma mai man mang mao me mei men meng mi mian miao mie min ming miu mo mou mu n na nai nan nang nao ne nei nen neng ng ni nian niang niao nie nin ning niu nong nou nu nuan nun nuo nv nve o ou pa pai pan pang pao pei pen peng pi pian piao pie pin ping po pou pu qi qia qian qiang qiao qie qin qing qiong qiu qu quan que qun ran rang rao re ren reng ri rong rou ru rua ruan rui run ruo sa sai san sang sao se sen seng sha shai shan shang shao she shei shen sheng shi shou shu shua shuai shuan shuang shui shun shuo si song sou su suan sui sun suo ta tai tan tang tao te tei teng ti tian tiao tie ting tong tou tu tuan tui tun tuo wa wai wan wang wei wen weng wo wu xi xia xian xiang xiao xie xin xing xiong xiu xu xuan xue xun ya yan yang yao ye yi yin ying yo yong you yu yuan yue yun za zai zan zang zao ze zei zen zeng zha zhai zhan zhang zhao zhe zhei zhen zheng zhi zhong zhou zhu zhua zhuai zhuan zhuang zhui zhun zhuo zi zong zou zu zuan zui zun zuo".split(" "));
@@ -350,39 +482,29 @@ function isPinyinSyllable(token) {
     return syllable.length > 1 && syllable.endsWith("r") && PINYIN_SYLLABLES.has(syllable.slice(0, -1));
 }
 
-function isPinyinOnlyLine(line) {
-    const trimmed = line.trim();
-    if (!trimmed || /[\u4e00-\u9fa5]/.test(line)) {
-        return false;
-    }
-    const tokens = trimmed.split(/\s+/);
-    return tokens.length > 0 && tokens.every(isPinyinSyllable);
-}
-
-function removePinyinFromPlain(text, clearRemovedParagraphs) {
+function removePinyinFromPlain(text) {
     const normalized = String(text).replace(/\r\n/g, "\n").replace(/\r/g, "\n");
     const lines = normalized.split("\n");
     if (lines.length > 0 && lines[lines.length - 1] === "") {
         lines.pop();
     }
-    const cleaned = lines.map(stripInlinePinyin);
     const kept = [];
-    let removed = 0;
-    for (let i = 0; i < cleaned.length; i++) {
-        const next = cleaned[i + 1];
-        const tokens = cleaned[i].trim().split(/\s+/).filter(Boolean);
-        if (next !== undefined && isPinyinOnlyLine(cleaned[i]) && tokens.length === countHan(next)) {
-            cleaned[i + 1] = next.replace(/[\u2002\u2007]/g, "");
-            removed++;
+    for (let i = 0; i < lines.length; i++) {
+        // A line is only ever treated as a generated "default" pinyin annotation
+        // if it carries our own marker. This avoids guessing based on content,
+        // which can mistake ordinary text for pinyin syllables.
+        if (lines[i].startsWith(PINYIN_DEFAULT_MARKER)) {
+            const next = lines[i + 1];
+            if (next !== undefined) {
+                lines[i + 1] = next.replace(/[\u2002\u2007]/g, "");
+            }
             continue;
         }
-        kept.push(cleaned[i]);
+        kept.push(stripInlinePinyin(lines[i]));
     }
-    if (clearRemovedParagraphs) {
-        for (let i = 0; i < removed; i++) {
-            kept.push("");
-        }
-    }
+    // No padding back to the original paragraph count: ReplaceTextSmart replaces the
+    // whole selection with this array, so a removed "default" pinyin paragraph should
+    // simply disappear rather than leave a blank paragraph behind.
     return kept;
 }
 
@@ -391,12 +513,12 @@ function removePinyinAnnotations(textArray) {
         const ans = [];
         for (let i = 0; i < textArray.length; i++) {
             textArray[i].forEach(element => {
-                ans.push(removePinyinFromPlain(element, false).join("\n"));
+                ans.push(removePinyinFromPlain(element).join("\n"));
             });
         }
         return ans;
     }
-    return removePinyinFromPlain(textArray, true);
+    return removePinyinFromPlain(textArray);
 }
 
 function showToast(message, backgroundColor = "#4BB543", duration = 1000) {

@@ -109,9 +109,8 @@
 
         .pinyin-layout {
             display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 12px;
+            flex-direction: column;
+            gap: 8px;
             font-size: 14px;
         }
 
@@ -119,11 +118,52 @@
             font-weight: bold;
         }
 
+        .layout-options {
+            display: flex;
+            border: 1px solid #5cc687;
+            border-radius: 6px;
+            overflow: hidden;
+        }
+
         .layout-option {
+            position: relative;
+            flex: 1;
             display: flex;
             align-items: center;
-            gap: 4px;
+            justify-content: center;
+            margin: 0;
+            padding: 8px 10px;
+            background: #ffffff;
+            color: #2f7d4a;
+            font-weight: 500;
             cursor: pointer;
+            user-select: none;
+        }
+
+        .layout-option + .layout-option {
+            border-left: 1px solid #5cc687;
+        }
+
+        .layout-option input {
+            position: absolute;
+            opacity: 0;
+            width: 1px;
+            height: 1px;
+            margin: 0;
+        }
+
+        .layout-option:hover {
+            background: #eefaf3;
+        }
+
+        .layout-option:has(input:checked) {
+            background: #5cc687;
+            color: #ffffff;
+        }
+
+        .layout-option:has(input:focus-visible) {
+            outline: 2px solid #1e3a8a;
+            outline-offset: -2px;
         }
     </style>
 </head>
@@ -135,14 +175,16 @@
         <button id="button2" class="btn" onclick="action('convertFanToChinese')">Traditional → Simplified</button>
         <div class="pinyin-layout">
             <span class="layout-label" id="pinyinLayoutLabel">Pinyin layout</span>
-            <label class="layout-option">
-                <input type="radio" name="pinyinLayout" id="pinyinDefault" value="default" checked />
-                <span id="pinyinDefaultLabel">Default</span>
-            </label>
-            <label class="layout-option">
-                <input type="radio" name="pinyinLayout" id="pinyinInline" value="inline" />
-                <span id="pinyinInlineLabel">Inline</span>
-            </label>
+            <div class="layout-options">
+                <label class="layout-option">
+                    <input type="radio" name="pinyinLayout" id="pinyinDefault" value="default" checked />
+                    <span id="pinyinDefaultLabel">Default</span>
+                </label>
+                <label class="layout-option">
+                    <input type="radio" name="pinyinLayout" id="pinyinInline" value="inline" />
+                    <span id="pinyinInlineLabel">Inline</span>
+                </label>
+            </div>
         </div>
         <button id="button3" class="btn2" onclick="action('addPinyin')">Add pinyin</button>
         <button id="button4" class="btn2" onclick="action('removePinyin')">Remove pinyin</button>
