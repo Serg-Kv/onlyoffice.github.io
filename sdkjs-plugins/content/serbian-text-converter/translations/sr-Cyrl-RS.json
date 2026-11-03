@@ -1,0 +1,20 @@
+{
+    "Select text in the document to convert it.": "Означи текст у документу да би га конвертовао.",
+    "Selected text is recognized as": "Означени текст је препознат као",
+    "No text selected": "Нема означеног текста",
+    "Cyrillic": "Ћирилица",
+    "Latin": "Латиница",
+    "Unknown": "Непознато",
+    "Convert": "Претвори",
+    "Convert to Latin": "Претвори у латиницу",
+    "Convert to Cyrillic": "Претвори у ћирилицу",
+    "Cyrillic → Latin": "Ћирилица → латиница",
+    "Latin → Cyrillic": "Латиница → ћирилица",
+    "Automatic swap": "Аутоматски (замени писмо)",
+    "Keep foreign words and brands unchanged (Windows, Google)": "Задржи стране речи и брендове непромењене (Windows, Google)",
+    "Right-click selected text for a quick conversion": "Десни клик на означени текст за брзу конверзију",
+    "Serbian converter": "Српски конвертер",
+    "Please select some text first.": "Прво изаберите текст.",
+    "Nothing to convert.": "Нема шта да се конвертује.",
+    "Conversion finished.": "Конверзија је завршена."
+}
