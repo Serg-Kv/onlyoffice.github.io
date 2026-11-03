@@ -9,5 +9,9 @@
     "Default": "默认",
     "Tip: Right-click after selecting text to use the function directly.": "提示：选中文本后右键单击可直接使用功能。",
     "Success!": "成功！",
-    "Please select some text first": "请先选择一些文本"
+    "Please select some text first": "请先选择一些文本",
+    "The text could not be updated.": "文本未能更新。",
+    "This selection can't be changed. Select whole paragraphs or one continuous piece of text.": "无法修改这种选区。请选择整段，或一段连续的文字。",
+    "Select the pinyin line and the Chinese text under it together.": "请同时选中拼音行和它下面的汉字。",
+    "No pinyin was found in the selection.": "选区里没有拼音。"
 }
