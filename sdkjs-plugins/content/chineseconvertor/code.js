@@ -175,10 +175,13 @@ function replaceTextSmart(replacementText){
 // Word-mode pinyin add/remove. The replacement text is computed here. callCommand
 // applies most edits with ReplaceTextSmart, which changes the selected characters
 // inside the existing runs, then inserts or deletes whole paragraphs when the
-// layout needs a different count. Inline parentheses are removed from the runs
-// when that run text is exactly the selection, so bold, italic, color, underline
-// and highlight stay on the characters that remain. An emptied note run is removed
-// with it, so its color does not spread onto the next character.
+// layout needs a different count. A paragraph is deleted only when this plugin
+// wrote it and the selection covers that whole paragraph. Inline parentheses are
+// removed from the runs when that run text is exactly the selection, so bold,
+// italic, color, underline and highlight stay on the characters that remain. An
+// emptied note run is removed with it, so its color does not spread onto the next
+// character. A run that also holds a drawing is not rewritten: only the note
+// characters are taken out, and the drawing stays.
 function applyWordPinyinOperation(selectedText, mode) {
     // GetSelectedText ends with a trailing separator, so drop the resulting empty
     // entry (like textSeperator/paragraphCount do) to match GetAllParagraphs() below.
@@ -414,7 +417,196 @@ function applyWordPinyinOperation(selectedText, mode) {
             }
         }
 
-        function writeRunText(run, text) {
+        function contentHost(run) {
+            if (run && run.Run && run.Run.Content && typeof run.Run.Content.length === "number") {
+                return run.Run;
+            }
+            if (run && run.Content && typeof run.Content.length === "number") {
+                return run;
+            }
+            return null;
+        }
+
+        function isDrawingItem(item) {
+            if (!item || typeof item !== "object") {
+                return false;
+            }
+            if (item.Drawing || item.drawing || item.ParaDrawing || item.GraphicObj || item.GraphicObject) {
+                return true;
+            }
+            if (item.IsDrawing === true || item.isDrawing === true) {
+                return true;
+            }
+            if (typeof item.IsDrawing === "function" && item.IsDrawing()) {
+                return true;
+            }
+            if (typeof item.IsPicture === "function" && item.IsPicture()) {
+                return true;
+            }
+            if (typeof item.Get_DrawingType === "function") {
+                return true;
+            }
+            var kind = "";
+            if (typeof item.GetClassType === "function") {
+                kind = String(item.GetClassType());
+            } else if (typeof item.Type === "string") {
+                kind = item.Type;
+            }
+            kind = kind.toLowerCase();
+            return kind.indexOf("draw") !== -1 || kind.indexOf("image") !== -1 || kind.indexOf("picture") !== -1;
+        }
+
+        function textOfItem(item) {
+            if (!item || typeof item !== "object" || isDrawingItem(item)) {
+                return null;
+            }
+            if (typeof item.GetCodePoint === "function") {
+                var code = item.GetCodePoint();
+                if (typeof code === "number" && code > 0) {
+                    return String.fromCodePoint(code);
+                }
+            }
+            if (typeof item.Value === "number" && item.Value > 0) {
+                return String.fromCodePoint(item.Value);
+            }
+            if (typeof item.Value === "string") {
+                return item.Value;
+            }
+            if (typeof item.text === "string") {
+                return item.text;
+            }
+            if (typeof item.Text === "string" && typeof item.GetText !== "function") {
+                return item.Text;
+            }
+            return null;
+        }
+
+        function hostHasDrawing(run) {
+            var host = contentHost(run);
+            var probes = [];
+            if (run && run.Run) {
+                probes.push(run.Run);
+            }
+            if (host) {
+                probes.push(host);
+            }
+            if (run) {
+                probes.push(run);
+            }
+            for (var p = 0; p < probes.length; p++) {
+                if (!probes[p] || typeof probes[p].GetAllDrawingObjects !== "function") {
+                    continue;
+                }
+                try {
+                    var drawings = probes[p].GetAllDrawingObjects();
+                    if (drawings && drawings.length) {
+                        return true;
+                    }
+                } catch (e) {
+                }
+            }
+            if (!host || !host.Content) {
+                return false;
+            }
+            for (var i = 0; i < host.Content.length; i++) {
+                if (isDrawingItem(host.Content[i])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function removeContentItem(host, index) {
+            if (typeof host.Remove_FromContent === "function") {
+                host.Remove_FromContent(index, 1);
+                return true;
+            }
+            if (typeof host.RemoveFromContent === "function") {
+                host.RemoveFromContent(index, 1);
+                return true;
+            }
+            if (host.Content && typeof host.Content.splice === "function") {
+                host.Content.splice(index, 1);
+                return true;
+            }
+            return false;
+        }
+
+        function writeItemText(item, text) {
+            if (typeof item.Value === "string" || typeof item.Value === "number") {
+                item.Value = text;
+                return true;
+            }
+            if (typeof item.text === "string") {
+                item.text = text;
+                return true;
+            }
+            if (typeof item.Text === "string" && typeof item.GetText !== "function") {
+                item.Text = text;
+                return true;
+            }
+            return false;
+        }
+
+        // SetText and ClearContent drop every item in the run, including a drawing
+        // that shares it with the note. Those runs lose only the note characters.
+        function cutDrawingRun(run, source, dropAt) {
+            var host = contentHost(run);
+            if (!host || !host.Content) {
+                return false;
+            }
+            var content = host.Content;
+            var plan = [];
+            var cursor = 0;
+            for (var i = 0; i < content.length; i++) {
+                var piece = textOfItem(content[i]);
+                if (piece == null) {
+                    plan.push({ index: i, keep: true });
+                    continue;
+                }
+                var kept = "";
+                for (var c = 0; c < piece.length; c++) {
+                    if (!dropAt[cursor + c]) {
+                        kept += piece.charAt(c);
+                    }
+                }
+                plan.push({ index: i, piece: piece, kept: kept });
+                cursor += piece.length;
+            }
+            if (cursor !== source.length) {
+                return false;
+            }
+            for (var check = 0; check < plan.length; check++) {
+                var ahead = plan[check];
+                if (ahead.keep || ahead.kept === ahead.piece || ahead.kept === "") {
+                    continue;
+                }
+                if (typeof content[ahead.index].Value !== "string" && typeof content[ahead.index].Value !== "number" && typeof content[ahead.index].text !== "string" && !(typeof content[ahead.index].Text === "string" && typeof content[ahead.index].GetText !== "function")) {
+                    return false;
+                }
+            }
+            for (var step = plan.length - 1; step >= 0; step--) {
+                var edit = plan[step];
+                if (edit.keep || edit.kept === edit.piece) {
+                    continue;
+                }
+                if (edit.kept === "") {
+                    if (!removeContentItem(host, edit.index)) {
+                        return false;
+                    }
+                    continue;
+                }
+                if (!writeItemText(content[edit.index], edit.kept)) {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        function writeRunText(run, text, source, dropAt) {
+            if (hostHasDrawing(run)) {
+                return cutDrawingRun(run, source, dropAt || {});
+            }
             if (text === "") {
                 if (typeof run.Delete === "function" && run.Delete()) {
                     return true;
@@ -477,15 +669,18 @@ function applyWordPinyinOperation(selectedText, mode) {
                 for (var t = 0; t < runs.length; t++) {
                     var source = texts[t];
                     var kept = "";
+                    var localDrop = {};
                     for (var ch = 0; ch < source.length; ch++) {
                         var at = pos + ch;
                         if (at < offset || at >= selEnd || !drop[at]) {
                             kept += source.charAt(ch);
+                        } else {
+                            localDrop[ch] = true;
                         }
                     }
                     pos += source.length;
                     if (kept !== source) {
-                        edits.push({ run: runs[t], text: kept });
+                        edits.push({ run: runs[t], text: kept, source: source, drop: localDrop });
                     }
                 }
                 if (pos !== joined.length) {
@@ -496,7 +691,7 @@ function applyWordPinyinOperation(selectedText, mode) {
             for (var plan = 0; plan < plans.length; plan++) {
                 var edits = plans[plan];
                 for (var e = edits.length - 1; e >= 0; e--) {
-                    if (!writeRunText(edits[e].run, edits[e].text)) {
+                    if (!writeRunText(edits[e].run, edits[e].text, edits[e].source, edits[e].drop)) {
                         return false;
                     }
                 }
@@ -559,6 +754,32 @@ function applyWordPinyinOperation(selectedText, mode) {
                 continue;
             }
             if (step.action === "delete") {
+                // Delete removes the whole paragraph. Skip it when the selection
+                // is only part of that paragraph, so the unselected ends stay.
+                // A missing U+200B or an alignment space stored as a normal space
+                // is still the whole generated paragraph.
+                var liveText = typeof oPara.GetText === "function" ? oPara.GetText(textOptions) : null;
+                var piece = String(source[n]);
+                if (typeof liveText === "string" && liveText !== piece) {
+                    var at = piece ? liveText.indexOf(piece) : -1;
+                    var covered = false;
+                    if (at >= 0 && liveText.indexOf(piece, at + 1) === -1) {
+                        var edge = liveText.slice(0, at) + liveText.slice(at + piece.length);
+                        covered = edge.replace(/[\s\u200B\uFEFF]/g, "") === "";
+                    } else {
+                        var lettersOf = function (value) {
+                            var text = String(value);
+                            if (text.normalize) {
+                                text = text.normalize("NFC");
+                            }
+                            return text.replace(/[\s\u200B\uFEFF]/g, "");
+                        };
+                        covered = lettersOf(liveText) === lettersOf(piece) && lettersOf(piece) !== "";
+                    }
+                    if (!covered) {
+                        continue;
+                    }
+                }
                 if (bookmarkNames[n] && docForMarks.DeleteBookmark) {
                     docForMarks.DeleteBookmark(bookmarkNames[n]);
                 }
@@ -598,6 +819,37 @@ function applyWordPinyinOperation(selectedText, mode) {
 // Asc.scope into callCommand). Processed as a whole array, not paragraph-by-paragraph,
 // because deleting a marker paragraph also requires stripping the alignment padding
 // (U+2002/U+2007) from the character paragraph right after it.
+// The editor often drops the leading U+200B, and it can turn the alignment
+// spaces into ordinary spaces, while the paragraph itself still has them.
+// That is still the whole generated paragraph. A selection inside other words,
+// such as "can you" inside "BEFORE can you AFTER", is not.
+function coversGeneratedParagraph(full, selected) {
+    const paragraph = String(full);
+    const piece = String(selected);
+    if (paragraph === piece) {
+        return true;
+    }
+    const at = piece ? paragraph.indexOf(piece) : -1;
+    if (at >= 0 && paragraph.indexOf(piece, at + 1) === -1) {
+        const edge = paragraph.slice(0, at) + paragraph.slice(at + piece.length);
+        if (edge.replace(/[\s\u200B\uFEFF]/g, "") === "") {
+            return true;
+        }
+        return false;
+    }
+    const letters = function (value) {
+        return value.normalize("NFC").replace(/[\s\u200B\uFEFF]/g, "");
+    };
+    return letters(paragraph) === letters(piece) && letters(piece) !== "";
+}
+
+function entireParagraphSelected(full, index, selected) {
+    if (!full || full[index] == null) {
+        return true;
+    }
+    return coversGeneratedParagraph(full[index], selected);
+}
+
 function paragraphFullText(full, index, selected) {
     if (!full || full[index] == null || selected == null) {
         return null;
@@ -628,21 +880,27 @@ function buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts) {
     const flags = ownedFlags || [];
     const full = Array.isArray(fullTexts) && fullTexts.length === paragraphsText.length ? fullTexts : null;
     const standalonePinyin = paragraphsText.map((t, i) => {
+        // A partial selection still belongs to the whole paragraph. Deleting that
+        // paragraph would also remove the unselected text around the selection.
+        if (!entireParagraphSelected(full, i, t)) {
+            return false;
+        }
         const next = paragraphsText[i + 1];
         if (next !== undefined && /[\u4e00-\u9fa5]/.test(String(next))) {
             return false;
         }
-        return isRemovableStandalonePinyin(t, !!flags[i]);
+        const judged = full && full[i] != null ? String(full[i]) : String(t);
+        return isRemovableStandalonePinyin(judged, !!flags[i]);
     });
     const isMarkerLine = paragraphsText.map((t, i) => {
+        if (!entireParagraphSelected(full, i, t)) {
+            return false;
+        }
         const nextSelected = paragraphsText[i + 1];
         const nextFull = nextSelected === undefined ? null : paragraphFullText(full, i + 1, nextSelected);
         const next = nextFull != null ? nextFull : nextSelected;
-        if (isPinyinMarkerLine(t, !!flags[i], next)) {
-            return true;
-        }
-        const ownFull = paragraphFullText(full, i, t);
-        return ownFull != null && ownFull !== String(t) && isPinyinMarkerLine(ownFull, !!flags[i], next);
+        const judged = full && full[i] != null ? String(full[i]) : String(t);
+        return isPinyinMarkerLine(judged, !!flags[i], next);
     });
     const cleanedTexts = paragraphsText.slice();
     const rewriteWhole = new Array(paragraphsText.length).fill(false);
@@ -661,14 +919,15 @@ function buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts) {
         }
         cleanedTexts[i + 1] = stripped;
     }
-    return cleanedTexts.map((text, i) => {
+    const steps = cleanedTexts.map((text, i) => {
         // A generated Default line is deleted when its syllables are the readings of
         // the character paragraph under it. A pasted U+200B in ordinary text is not.
         if (isMarkerLine[i] || (mode === "remove" && standalonePinyin[i])) {
             return { action: "delete" };
         }
         const original = paragraphsText[i];
-        const cleaned = stripInlinePinyin(text);
+        const context = paragraphFullText(full, i, text) || text;
+        const cleaned = stripInlinePinyin(text, context);
         const recovered = mode === "remove" ? recoverUnpairedDefaultLine(cleaned) : null;
         const restored = recovered != null ? recovered : cleaned;
         const wholeParagraph = rewriteWhole[i] && full ? String(full[i]) : null;
@@ -700,6 +959,35 @@ function buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts) {
         }
         return { action: "settext", lines: step.lines, cuts: cuts };
     });
+    // Cleaning the character line and leaving its pinyin line in place is the bug.
+    // A partial Default line has one syllable per padded character, not per character
+    // of the plain tail. "can you" does not match that span, so it stays.
+    if (mode === "remove") {
+        for (let i = 0; i < steps.length - 1; i++) {
+            if (steps[i] && steps[i].action === "delete") {
+                continue;
+            }
+            if (!entireParagraphSelected(full, i, paragraphsText[i])) {
+                continue;
+            }
+            const nextStep = steps[i + 1];
+            const nextText = nextStep && nextStep.action === "settext" && nextStep.lines ? String(nextStep.lines[nextStep.lines.length - 1]) : "";
+            if (!nextText || nextText === String(paragraphsText[i + 1]) || /[\u2002\u2007]/.test(nextText) || !/[\u4e00-\u9fa5]/.test(nextText)) {
+                continue;
+            }
+            const pinyinLine = full && full[i] != null ? String(full[i]) : String(paragraphsText[i]);
+            const syllables = pinyinLineSyllables(pinyinLine) || pinyinLineSyllables(paragraphsText[i]);
+            const nextFull = paragraphFullText(full, i + 1, paragraphsText[i + 1]);
+            const spanHans = Math.max(
+                paddedHanCount(paragraphsText[i + 1]),
+                nextFull != null ? paddedHanCount(nextFull) : 0
+            );
+            if (syllables && spanHans && syllables.length === spanHans) {
+                steps[i] = { action: "delete" };
+            }
+        }
+    }
+    return steps;
 }
 
 // Indexes of characters removed from original to produce next. Null when next is
@@ -1126,6 +1414,65 @@ function recoverUnpairedDefaultLine(text) {
     return null;
 }
 
+// How many Chinese characters sit in the padded span. A partial Default line
+// covers only that span, not the plain tail of the same paragraph.
+function paddedHanCount(source) {
+    const text = String(source);
+    if (!/[\u2002\u2007]/.test(text)) {
+        return 0;
+    }
+    const plain = text.replace(/[\u2002\u2007]/g, "");
+    let first = -1;
+    let last = -1;
+    for (let i = 0; i < text.length; i++) {
+        const ch = text.charAt(i);
+        if (ch === "\u2002" || ch === "\u2007") {
+            if (first < 0) {
+                first = i;
+            }
+            last = i;
+        }
+    }
+    let lead = 0;
+    for (let i = 0; i < first; i++) {
+        if (text.charAt(i) !== "\u2002" && text.charAt(i) !== "\u2007") {
+            lead++;
+        }
+    }
+    let throughLast = 0;
+    for (let i = 0; i < last; i++) {
+        if (text.charAt(i) !== "\u2002" && text.charAt(i) !== "\u2007") {
+            throughLast++;
+        }
+    }
+    const starts = lead > 0 ? [lead, lead - 1] : [lead];
+    const ends = throughLast < plain.length ? [throughLast, throughLast + 1] : [throughLast];
+    for (let s = 0; s < starts.length; s++) {
+        for (let e = 0; e < ends.length; e++) {
+            const start = starts[s];
+            const end = ends[e];
+            if (end <= start) {
+                continue;
+            }
+            const slice = plain.slice(start, end);
+            const hans = slice.match(/[\u4e00-\u9fa5]/g);
+            if (!hans || hans.length < 2) {
+                continue;
+            }
+            const built = buildDefaultLine(slice, addPinyin(slice), 0);
+            if (built.lines && built.lines.length === 2 && plain.slice(0, start) + built.lines[1] + plain.slice(end) === text) {
+                return hans.length;
+            }
+        }
+    }
+    const whole = buildDefaultLine(plain, addPinyin(plain), 0);
+    if (whole.lines && whole.lines.length === 2 && whole.lines[1] === text) {
+        const hans = plain.match(/[\u4e00-\u9fa5]/g);
+        return hans ? hans.length : 0;
+    }
+    return 0;
+}
+
 function padCenter(text, width) {
     const gap = width - stringWidth(text);
     if (gap <= 0) {
@@ -1186,7 +1533,7 @@ function pinyinLineSyllables(text) {
 
 function pinyinLineMatchesReadings(text, nextText) {
     const syllables = pinyinLineSyllables(text);
-    if (!syllables || syllables.length === 0) {
+    if (!syllables || syllables.length === 0 || !hasGeneratedMark(text)) {
         return false;
     }
     const split = splitPinyinIndent(text);
@@ -1245,22 +1592,20 @@ function pinyinLineMatchesReadings(text, nextText) {
     return true;
 }
 
-// A generated pinyin paragraph with no Chinese line under it in the selection.
-// A bookmark, the marker, alignment spaces, or more than one syllable makes it ours.
-// One syllable such as "can", with none of those, stays.
+// A leading U+200B or the alignment spaces U+2002/U+2007. Ordinary spaces and
+// the fact that the words are syllables do not show that this plugin wrote the line.
+function hasGeneratedMark(text) {
+    const raw = String(text);
+    return raw.charAt(0) === PINYIN_DEFAULT_MARKER || /[\u2002\u2007]/.test(raw);
+}
+
+// A pinyin paragraph with no Chinese line under it. A ccPinyin bookmark or a
+// generated mark is required. "can you" has neither, so it stays.
 function isRemovableStandalonePinyin(text, owned) {
     if (!isGeneratedPinyinLine(text)) {
         return false;
     }
-    if (owned) {
-        return true;
-    }
-    const body = String(text);
-    if (body.charAt(0) === PINYIN_DEFAULT_MARKER || /[\u2002\u2007]/.test(body)) {
-        return true;
-    }
-    const syllables = pinyinLineSyllables(body);
-    return !!(syllables && syllables.length > 1);
+    return !!owned || hasGeneratedMark(text);
 }
 
 function isPinyinMarkerLine(text, owned, nextText) {
@@ -1281,7 +1626,7 @@ function isOrphanPinyinSelection(paragraphsText, ownedFlags, fullTexts) {
     for (let i = 0; i < paragraphsText.length; i++) {
         const fullLine = paragraphFullText(fullTexts, i, paragraphsText[i]);
         const line = fullLine != null ? fullLine : String(paragraphsText[i]);
-        if (!isGeneratedPinyinLine(line)) {
+        if (!isGeneratedPinyinLine(line) || !hasGeneratedMark(line)) {
             continue;
         }
         if (paragraphsText[i + 1] !== undefined) {
@@ -1296,7 +1641,7 @@ function selectionIsOrphanPinyin(text) {
     const lines = splitParagraphs(text);
     let found = false;
     for (let i = 0; i < lines.length; i++) {
-        if (!isGeneratedPinyinLine(lines[i])) {
+        if (!isGeneratedPinyinLine(lines[i]) || !hasGeneratedMark(lines[i])) {
             continue;
         }
         if (lines[i + 1] !== undefined) {
@@ -1407,7 +1752,7 @@ function sameGeneratedReading(note, reading) {
     return left !== "" && left === right;
 }
 
-function stripInlinePinyin(text) {
+function stripInlinePinyin(text, context) {
     const source = String(text);
     // A parenthesis is removed only when it is the reading this plugin would
     // write for that character. (can) stays on 中, because can is not zhōng.
@@ -1427,6 +1772,18 @@ function stripInlinePinyin(text) {
         hans.push({ index: i, note: followingNote(source, i) });
     }
     const fullReadings = addPinyin(hanTextForReadings(source));
+    // The selected half can sit inside a paragraph whose notes were chosen from
+    // the whole paragraph. 行 is háng there and xíng in the half alone.
+    let contextReadings = null;
+    let hanOffset = 0;
+    if (context && String(context) !== source) {
+        const around = String(context);
+        const at = around.indexOf(source);
+        if (at >= 0 && around.indexOf(source, at + 1) === -1) {
+            hanOffset = (hanTextForReadings(around.slice(0, at)).match(/[\u4e00-\u9fa5]/g) || []).length;
+            contextReadings = addPinyin(hanTextForReadings(around));
+        }
+    }
     const stripAt = new Set();
     let span = [];
     function finishSpan() {
@@ -1455,6 +1812,9 @@ function stripInlinePinyin(text) {
         if (fullReadings[h] && sameGeneratedReading(item.note.note, fullReadings[h])) {
             stripAt.add(item.index);
         }
+        if (contextReadings && contextReadings[hanOffset + h] && sameGeneratedReading(item.note.note, contextReadings[hanOffset + h])) {
+            stripAt.add(item.index);
+        }
         span.push(item);
     }
     finishSpan();
@@ -1479,7 +1839,7 @@ function stripInlinePinyin(text) {
 const PINYIN_SYLLABLES = new Set("a ai an ang ao ba bai ban bang bao bei ben beng bi bian biao bie bin bing bo bu ca cai can cang cao ce cen ceng cha chai chan chang chao che chen cheng chi chong chou chu chua chuai chuan chuang chui chun chuo ci cong cou cu cuan cui cun cuo da dai dan dang dao de dei den deng di dia dian diao die ding diu dong dou du duan dui dun duo e ei en eng er fa fan fang fei fen feng fo fou fu ga gai gan gang gao ge gei gen geng gong gou gu gua guai guan guang gui gun guo ha hai han hang hao he hei hen heng hm hng hong hou hu hua huai huan huang hui hun huo ji jia jian jiang jiao jie jin jing jiong jiu ju juan jue jun ka kai kan kang kao ke kei ken keng kong kou ku kua kuai kuan kuang kui kun kuo la lai lan lang lao le lei leng li lia lian liang liao lie lin ling liu lo long lou lu luan lun luo lv lve m ma mai man mang mao me mei men meng mi mian miao mie min ming miu mo mou mu n na nai nan nang nao ne nei nen neng ng ni nian niang niao nie nin ning niu nong nou nu nuan nun nuo nv nve o ou pa pai pan pang pao pei pen peng pi pian piao pie pin ping po pou pu qi qia qian qiang qiao qie qin qing qiong qiu qu quan que qun ran rang rao re ren reng ri rong rou ru rua ruan rui run ruo sa sai san sang sao se sen seng sha shai shan shang shao she shei shen sheng shi shou shu shua shuai shuan shuang shui shun shuo si song sou su suan sui sun suo ta tai tan tang tao te tei teng ti tian tiao tie ting tong tou tu tuan tui tun tuo wa wai wan wang wei wen weng wo wu xi xia xian xiang xiao xie xin xing xiong xiu xu xuan xue xun ya yan yang yao ye yi yin ying yo yong you yu yuan yue yun za zai zan zang zao ze zei zen zeng zha zhai zhan zhang zhao zhe zhei zhen zheng zhi zhong zhou zhu zhua zhuai zhuan zhuang zhui zhun zhuo zi zong zou zu zuan zui zun zuo".split(" "));
 
 function normalizeSyllable(token) {
-    return token.toLowerCase()
+    return String(token).normalize("NFC").toLowerCase()
         .replace(/[āáǎà]/g, "a")
         .replace(/[ēéěè]/g, "e")
         .replace(/[īíǐì]/g, "i")

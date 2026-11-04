@@ -133,8 +133,8 @@
             justify-content: center;
             margin: 0;
             padding: 8px 10px;
-            background: #ffffff;
-            color: #2f7d4a;
+            background: #5cc687;
+            color: #ffffff;
             font-weight: 500;
             cursor: pointer;
             user-select: none;
@@ -153,12 +153,13 @@
         }
 
         .layout-option:hover {
-            background: #eefaf3;
+            background: #49b576;
         }
 
-        .layout-option:has(input:checked) {
-            background: #5cc687;
-            color: #ffffff;
+        .layout-option:has(input:checked),
+        .layout-option:has(input:checked):hover {
+            background: #ffffff;
+            color: #2f7d4a;
         }
 
         .layout-option:has(input:focus-visible) {
