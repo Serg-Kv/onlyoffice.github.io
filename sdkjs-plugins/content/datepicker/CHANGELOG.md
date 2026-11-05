@@ -1,13 +1,8 @@
 # Change Log
 
-## 1.0.0
+## 1.2.0
 
-- Initial release.
-
-## 1.1.0
-
-- Added option for keeping cell formatting.
-
-## 1.1.1
-
-- Added option for keeping cell number format.
+- Add an option to preserve the existing cell number format when inserting dates.
+- Keep number-format preservation independent from visual cell formatting.
+- Support inserting dates into selections with different cell number formats.
+- Add localized interface labels and insertion messages.
