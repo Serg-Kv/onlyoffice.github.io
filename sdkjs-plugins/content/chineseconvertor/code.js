@@ -15,26 +15,26 @@ Asc.plugin.attachEvent("onContextMenuShow", (options) => {
         guid: window.Asc.plugin.guid,
         items: [{
             id: "onClickItem1",
-            text: { zh: "繁简转换器", en: "convert" },
+            text: tr("Convert"),
             items: [{
                     id: "convertChineseToFan",
-                    text: { zh: "简体字转繁体字", en: "Convert Select to Traditional" },
+                    text: tr("Convert selection to Traditional"),
                 },
                 {
                     id: "convertFanToChinese",
-                    text: { zh: "繁体字转简体字", en: "Convert Select to Simplified" },
+                    text: tr("Convert selection to Simplified"),
                 },
                 {
                     id: "addPinyin",
-                    text: { zh: "添加拼音（括号）", en: "Add pinyin (inline)" },
+                    text: tr("Add pinyin (Inline)"),
                 },
                 {
                     id: "addPinyinDefault",
-                    text: { zh: "添加拼音（默认）", en: "Add pinyin (default)" },
+                    text: tr("Add pinyin (Reading line)"),
                 },
                 {
                     id: "removePinyin",
-                    text: { zh: "移除拼音", en: "Remove pinyin" },
+                    text: tr("Remove pinyin"),
                 },
             ],
         }]
@@ -49,23 +49,83 @@ function handleTextOperation(id) {
             break;
         }
         case 'cell': {
-            window.Asc.plugin.callCommand(function() {
-                var oWorksheet = Api.GetActiveSheet();
-                var oRange = oWorksheet.GetSelection();
-                var selectedText = oRange.GetValue();
-                return selectedText;
-            }, false, false, (selectedText) => {
-                if (typeof selectedText !== 'string') {
-                    core(id, selectedText);
-                }else getSelectedText(id, selectedText);
-            });
+            convertSelectedCells(id);
             break;
         }
     }
 }
 
-function getSelectedText(id, preselectedText = null) {
-    Asc.scope.preselectedText = preselectedText;
+let cellOperationPending = false;
+
+function convertSelectedCells(id) {
+    if (cellOperationPending) return;
+    cellOperationPending = true;
+    const finish = result => {
+        cellOperationPending = false;
+        reportWordPinyinResult(result);
+    };
+    window.Asc.plugin.callCommand(function () {
+        const sheet = Api.GetActiveSheet();
+        const range = sheet && (sheet.GetSelection() || sheet.GetActiveCell());
+        if (!range) return null;
+        if (range.GetRowsCount() * range.GetColumnsCount() > 2000) return { error: "large" };
+        const cells = [];
+        range.ForEach(function (cell) {
+            const value = cell.GetValue();
+            const formula = cell.GetFormula();
+            if (typeof value === "string" && value.trim() && !/^=/.test(value) &&
+                !(typeof formula === "string" && /^=/.test(formula))) {
+                cells.push({ address: cell.GetAddress(true, true, "xlA1", false), value: value, formula: formula });
+            }
+        });
+        return JSON.stringify({ sheet: sheet.GetName(), selection: range.GetAddress(), cells: cells });
+    }, false, false, function (raw) {
+        try {
+            const snapshot = typeof raw === "string" ? JSON.parse(raw) : raw;
+            if (!snapshot || snapshot.error) return finish(snapshot && snapshot.error || "unsupported");
+            const updates = snapshot.cells.map(cell => {
+                const value = convertCellText(cell.value, id);
+                return { ...cell, next: value, wrap: id === "addPinyinDefault" && value.includes("\n") };
+            }).filter(cell => cell.next !== cell.value && !/^=/.test(cell.next));
+            if (!updates.length) return finish("unchanged");
+            Asc.scope.chineseCells = { sheet: snapshot.sheet, selection: snapshot.selection, updates: updates };
+            window.Asc.plugin.callCommand(function () {
+                const job = Asc.scope.chineseCells;
+                const sheet = Api.GetActiveSheet();
+                const range = sheet && (sheet.GetSelection() || sheet.GetActiveCell());
+                if (!range || sheet.GetName() !== job.sheet || range.GetAddress() !== job.selection) return "changed";
+                const cells = job.updates.map(update => sheet.GetRange(update.address));
+                // Check the entire batch before editing. Never overwrite a later edit or formula.
+                if (cells.some((cell, i) => !cell || cell.GetValue() !== job.updates[i].value ||
+                    cell.GetFormula() !== job.updates[i].formula)) return "changed";
+                for (let i = 0; i < cells.length; i++) {
+                    const update = job.updates[i];
+                    if (cells[i].SetValue(update.next) === false) return "failed";
+                    if (update.wrap && cells[i].SetWrap(true) === false) return "failed";
+                }
+                return "ok";
+            }, false, true, finish);
+        } catch (e) {
+            finish("failed");
+        }
+    });
+}
+
+function convertCellText(text, id) {
+    if (id === "convertChineseToFan" || id === "convertFanToChinese") {
+        const traditional = id === "convertChineseToFan";
+        return OpenCC.Converter({ from: traditional ? "cn" : "tw", to: traditional ? "tw" : "cn" })(text);
+    }
+    const plain = removePinyinFromPlain(text, true);
+    if (id === "removePinyin") return plain.join("\n");
+    if (id === "addPinyin") return plain.map(annotateInlineForParagraph).join("\n");
+    if (id === "addPinyinDefault") {
+        return plain.flatMap(line => buildDefaultLine(line, addPinyin(line), 0).lines).join("\n");
+    }
+    return text;
+}
+
+function getSelectedText(id) {
     const props = {
         Numbering: false,
         Math: false,
@@ -73,15 +133,11 @@ function getSelectedText(id, preselectedText = null) {
         TableRowSeparator: "\n",
         ParaSeparator: "\n",
         TabSymbol: "\t",
-        NewLineSeparator: "\r",
+        NewLineSeparator: "\r"
     };
     window.Asc.plugin.executeMethod("GetSelectedText", [props], function (data) {
-        data = data || Asc.scope.preselectedText;
-        if (data && data.trim() !== '') {
-            core(id, data);
-        } else {
-            showToast(tr("Please select some text first"), "#FFAA00", 3000);
-        }
+        if (typeof data === "string" && data.trim()) core(id, data);
+        else showToast(tr("Please select some text first"), "#FFAA00", 3000);
     });
 }
 
@@ -157,7 +213,7 @@ function replaceTranslatedText(selectedText, fileType, curLang, targetLang){
 
 function replaceTextSmart(replacementText){
     Asc.scope.newText = replacementText;
-    window.Asc.plugin.executeMethod ("ReplaceTextSmart", [Asc.scope.newText, "\t", "\n"],
+    window.Asc.plugin.executeMethod ("ReplaceTextSmart", [Asc.scope.newText, "\t", "\r"],
         function (isDone) {
         if (isDone) {
             reportWordPinyinResult("ok");
@@ -167,7 +223,7 @@ function replaceTextSmart(replacementText){
             if (typeof Api.ReplaceTextSmart !== "function") {
                 return "failed";
             }
-            return Api.ReplaceTextSmart(Asc.scope.newText) ? "ok" : "failed";
+            return Api.ReplaceTextSmart(Asc.scope.newText, "\t", "\r") ? "ok" : "failed";
         }, false, false, reportWordPinyinResult);
     });
 }
@@ -182,7 +238,15 @@ function replaceTextSmart(replacementText){
 // emptied note run is removed with it, so its color does not spread onto the next
 // character. A run that also holds a drawing is not rewritten: only the note
 // characters are taken out, and the drawing stays.
+let wordPinyinPending = false;
+
 function applyWordPinyinOperation(selectedText, mode) {
+    if (wordPinyinPending) return;
+    wordPinyinPending = true;
+    const finish = result => {
+        wordPinyinPending = false;
+        reportWordPinyinResult(result);
+    };
     // GetSelectedText ends with a trailing separator, so drop the resulting empty
     // entry (like textSeperator/paragraphCount do) to match GetAllParagraphs() below.
     const paragraphsText = String(selectedText).split("\n");
@@ -228,6 +292,12 @@ function applyWordPinyinOperation(selectedText, mode) {
         var flags = "";
         var found = [];
         var full = [];
+        var selected = oRange.GetText && oRange.GetText({
+            Numbering: false, Math: false, TableCellSeparator: "\n", TableRowSeparator: "\n",
+            ParaSeparator: "\n", TabSymbol: "\t", NewLineSeparator: "\r"
+        });
+        var ids = [];
+        var previous = [];
         var textOptions = { Numbering: false, Math: false, NewLineSeparator: "\r", TabSymbol: "\t" };
         for (var j = 0; j < paragraphs.length; j++) {
             var id = paragraphs[j].GetInternalId ? String(paragraphs[j].GetInternalId()) : "";
@@ -240,11 +310,19 @@ function applyWordPinyinOperation(selectedText, mode) {
             }
             var fullText = paragraphs[j].GetText ? paragraphs[j].GetText(textOptions) : "";
             full.push(typeof fullText === "string" ? fullText : "");
+            ids.push(id);
+            var prev = paragraphs[j].GetPrevious && paragraphs[j].GetPrevious();
+            var prevId = prev && prev.GetInternalId && String(prev.GetInternalId());
+            previous.push(prevId && prev.GetText ? {
+                id: prevId, text: prev.GetText(textOptions), name: nameById[prevId] || ""
+            } : null);
         }
-        return JSON.stringify({ flags: flags, names: found, full: full });
+        return JSON.stringify({ flags: flags, names: found, full: full, ids: ids, previous: previous, selected: selected,
+            start: oRange.GetStartPos && oRange.GetStartPos(),
+            end: oRange.GetEndPos && oRange.GetEndPos() });
     }, false, false, function (raw) {
         if (raw == null || raw === "") {
-            reportWordPinyinResult("unsupported");
+            finish("unsupported");
             return;
         }
         var parsed = null;
@@ -265,16 +343,25 @@ function applyWordPinyinOperation(selectedText, mode) {
             }
         }
         var fullTexts = parsed && Array.isArray(parsed.full) && parsed.full.length === paragraphsText.length ? parsed.full : null;
-        const instructions = buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts);
+        if (!fullTexts || !Array.isArray(parsed.ids) || !parsed.ids.every(Boolean) ||
+            !Array.isArray(parsed.previous) || parsed.previous.length !== fullTexts.length) return finish("unsupported");
+        if (typeof parsed.selected === "string" &&
+            splitParagraphs(parsed.selected).join("\n") !== paragraphsText.join("\n")) return finish("changed");
+        const previous = parsed.previous.map((p, i) =>
+            p && !parsed.ids.includes(p.id) && isPinyinMarkerLine(p.text, !!p.name, fullTexts[i]) ? p : null);
+        const instructions = buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts, previous);
+        if (instructions.some(step => step.action === "unsupported")) return finish("pair");
         if (mode === "remove" && instructions.every(function (step) { return !step || step.action === "none"; })) {
-            reportWordPinyinResult("unchanged");
+            finish("unchanged");
             return;
         }
         Asc.scope.pinyinInstructions = instructions;
         // The strings the instructions were built from. callCommand needs them to find
         // the selection inside each full paragraph and keep the unselected ends.
         Asc.scope.pinyinSourceParagraphs = paragraphsText;
-        Asc.scope.pinyinBookmarkNames = parsed && parsed.names ? parsed.names : [];
+        Asc.scope.pinyinBookmarkNames = parsed.names;
+        Asc.scope.pinyinSnapshot = { ids: parsed.ids, full: fullTexts, start: parsed.start, end: parsed.end };
+        Asc.scope.pinyinPrevious = previous;
         window.Asc.plugin.callCommand(function () {
         var oRange = Api.GetDocument().GetRangeBySelect();
         if (!oRange) {
@@ -315,61 +402,28 @@ function applyWordPinyinOperation(selectedText, mode) {
             return created;
         }
 
-        // Same width classes as charWidth() outside this command. callCommand cannot
-        // see the plugin's functions, so the rule is repeated here.
-        var WIDE = /[\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/;
-        function padForPrefix(prefix) {
-            var pad = "";
-            for (var c = 0; c < prefix.length; c++) {
-                pad += WIDE.test(prefix.charAt(c)) ? "  " : " ";
-            }
-            return pad;
-        }
-
-        // Where the selected text sits inside the full paragraph.
-        // A selection that continues into the next paragraph owns the end of this one.
-        // A selection that arrived from the previous paragraph owns the start of this one.
-        // A selection inside a single paragraph must match exactly one place.
-        // Returns null when the place cannot be known. The text edit still follows
-        // the live selection; only the indent of a generated pinyin line is skipped.
-        function locate(full, selected, index, count) {
-            if (selected === "" && full !== "") {
-                return null;
-            }
-            if (full === selected) {
-                return { prefix: "", suffix: "" };
-            }
-            if (count === 1) {
-                var at = full.indexOf(selected);
-                if (at < 0) {
-                    return null;
-                }
-                if (full.indexOf(selected, at + 1) !== -1) {
-                    return null;
-                }
-                return { prefix: full.slice(0, at), suffix: full.slice(at + selected.length) };
-            }
-            if (index === 0) {
-                if (selected.length > full.length || full.slice(full.length - selected.length) !== selected) {
-                    return null;
-                }
-                return { prefix: full.slice(0, full.length - selected.length), suffix: "" };
-            }
-            if (index === count - 1) {
-                if (full.slice(0, selected.length) !== selected) {
-                    return null;
-                }
-                return { prefix: "", suffix: full.slice(selected.length) };
-            }
-            return null;
-        }
-
         var textOptions = { Numbering: false, Math: false, NewLineSeparator: "\r", TabSymbol: "\t" };
+        var snapshot = Asc.scope.pinyinSnapshot;
+        if ((snapshot.start != null && oRange.GetStartPos() !== snapshot.start) ||
+            (snapshot.end != null && oRange.GetEndPos() !== snapshot.end)) return "changed";
+        var previousToDelete = [];
+        for (var v = 0; v < paragraphs.length; v++) {
+            var para = paragraphs[v];
+            if (String(para.GetInternalId()) !== snapshot.ids[v] ||
+                para.GetText(textOptions) !== snapshot.full[v]) return "changed";
+            var prev = Asc.scope.pinyinPrevious[v];
+            if (prev && instructions[v].action !== "none") {
+                var livePrevious = para.GetPrevious();
+                if (!livePrevious || String(livePrevious.GetInternalId()) !== prev.id ||
+                    livePrevious.GetText(textOptions) !== prev.text) return "changed";
+                previousToDelete[v] = livePrevious;
+            }
+        }
+
         // One replacement per selected paragraph. Unchanged and soon-deleted paragraphs
         // keep their own selected text, so the diff does not touch them. An inserted
         // pinyin line is not part of this array: it becomes its own paragraph below.
         var replacements = [];
-        var prefixByIndex = new Array(paragraphs.length);
         var directCuts = [];
         var needsSmartReplace = false;
         for (var i = 0; i < paragraphs.length; i++) {
@@ -390,13 +444,9 @@ function applyWordPinyinOperation(selectedText, mode) {
                 directCuts.push({ index: i, cuts: instr.cuts, text: selected });
                 continue;
             }
-            needsSmartReplace = true;
-            replacements.push(String(instr.lines[instr.lines.length - 1]));
-            if (instr.action === "insert") {
-                var full = paragraphs[i].GetText(textOptions);
-                var loc = typeof full === "string" ? locate(full, selected, i, paragraphs.length) : null;
-                prefixByIndex[i] = loc ? loc.prefix : "";
-            }
+            var next = String(instr.lines[instr.lines.length - 1]);
+            if (next !== selected) needsSmartReplace = true;
+            replacements.push(next);
         }
 
         function collectApiRuns(container, runs) {
@@ -680,6 +730,7 @@ function applyWordPinyinOperation(selectedText, mode) {
                     }
                     pos += source.length;
                     if (kept !== source) {
+                        if (!contentHost(runs[t])) return false;
                         edits.push({ run: runs[t], text: kept, source: source, drop: localDrop });
                     }
                 }
@@ -703,12 +754,7 @@ function applyWordPinyinOperation(selectedText, mode) {
         if (!needsSmartReplace && directCuts.length) {
             cutsApplied = applyDirectCuts(directCuts);
         }
-        // Rebuilding the paragraph would replace bold, color, underline and highlight
-        // with one run. If the notes cannot be lifted out of the existing runs, stop.
-        if (!cutsApplied && !needsSmartReplace && directCuts.length) {
-            return "failed";
-        }
-        if (!cutsApplied) {
+        if (!cutsApplied && (needsSmartReplace || directCuts.length)) {
             for (var job = 0; job < directCuts.length; job++) {
                 var cutInstr = instructions[directCuts[job].index];
                 replacements[directCuts[job].index] = String(cutInstr.lines[cutInstr.lines.length - 1]);
@@ -750,6 +796,11 @@ function applyWordPinyinOperation(selectedText, mode) {
         for (var n = paragraphs.length - 1; n >= 0; n--) {
             var oPara = paragraphs[n];
             var step = instructions[n];
+            if (previousToDelete[n]) {
+                var oldName = Asc.scope.pinyinPrevious[n].name;
+                if (previousToDelete[n].Delete() === false) return "failed";
+                if (oldName && docForMarks.DeleteBookmark) docForMarks.DeleteBookmark(oldName);
+            }
             if (!step || step.action === "none" || step.action === "settext") {
                 continue;
             }
@@ -783,23 +834,16 @@ function applyWordPinyinOperation(selectedText, mode) {
                 if (bookmarkNames[n] && docForMarks.DeleteBookmark) {
                     docForMarks.DeleteBookmark(bookmarkNames[n]);
                 }
-                oPara.Delete();
+                if (oPara.Delete() === false) return "failed";
                 continue;
             }
             if (step.action === "insert") {
-                var prefixPad = padForPrefix(prefixByIndex[n] || "");
                 var anchor = oPara;
                 for (var k = step.lines.length - 2; k >= 0; k--) {
                     var line = step.lines[k];
-                    if (prefixPad) {
-                        // Keep the ownership marker at index 0 so a later Remove still finds it.
-                        if (line.charAt(0) === "\u200B") {
-                            line = "\u200B" + prefixPad + line.substring(1);
-                        } else {
-                            line = prefixPad + line;
-                        }
-                    }
                     anchor = anchor.InsertParagraph(line, "before", true);
+                    if (!anchor) return "failed";
+                    if (anchor.SetKeepNext) anchor.SetKeepNext(true);
                     // Bookmark only the generated pinyin line. The character line has no marker.
                     if (anchor && line.charAt(0) === "\u200B" && anchor.GetRange) {
                         var createdRange = anchor.GetRange();
@@ -811,7 +855,7 @@ function applyWordPinyinOperation(selectedText, mode) {
             }
         }
         return "ok";
-    }, false, false, reportWordPinyinResult);
+    }, false, false, finish);
     });
 }
 
@@ -864,130 +908,37 @@ function paragraphFullText(full, index, selected) {
     return null;
 }
 
-function finishTextEdit(original, nextText, wholeParagraph) {
-    if (wholeParagraph != null) {
-        if (nextText === wholeParagraph) {
-            return { action: "none" };
-        }
-        // The batch replace only sees the selection. `whole` is applied to the
-        // entire paragraph afterwards, so the unselected ends keep the same edit.
-        return { action: "settext", lines: [original], whole: nextText };
-    }
-    return nextText !== original ? { action: "settext", lines: [nextText] } : { action: "none" };
-}
-
-function buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts) {
+function buildPinyinInstructions(paragraphsText, mode, ownedFlags, fullTexts, previous) {
     const flags = ownedFlags || [];
     const full = Array.isArray(fullTexts) && fullTexts.length === paragraphsText.length ? fullTexts : null;
-    const standalonePinyin = paragraphsText.map((t, i) => {
-        // A partial selection still belongs to the whole paragraph. Deleting that
-        // paragraph would also remove the unselected text around the selection.
-        if (!entireParagraphSelected(full, i, t)) {
-            return false;
+    const isMarkerLine = paragraphsText.map((text, i) =>
+        entireParagraphSelected(full, i, text) &&
+        isPinyinMarkerLine(full ? full[i] : text, !!flags[i], full ? full[i + 1] : paragraphsText[i + 1]));
+    return paragraphsText.map((original, i) => {
+        if (isMarkerLine[i]) return { action: "delete" };
+        const reading = (previous && previous[i] && previous[i].text) ||
+            (isMarkerLine[i - 1] && (full ? full[i - 1] : paragraphsText[i - 1]));
+        let text = original;
+        let whole = null;
+        if (reading && !reading.startsWith(READING_LINE_MARKER)) {
+            // Legacy versions added visual padding. Only remove it from a verified pair.
+            if (!entireParagraphSelected(full, i, original)) return { action: "unsupported" };
+            const padded = full ? full[i] : original;
+            text = stripPartialAnnotation(reading, padded);
+            if (text === padded) text = recoverUnpairedDefaultLine(padded) || padded;
+            if (padded !== original && text !== padded) whole = text;
         }
-        const next = paragraphsText[i + 1];
-        if (next !== undefined && /[\u4e00-\u9fa5]/.test(String(next))) {
-            return false;
+        const cleaned = stripInlinePinyin(text, paragraphFullText(full, i, text) || text);
+        if (mode === "add-default") {
+            const lines = buildDefaultLine(cleaned, addPinyin(cleaned), 0).lines;
+            if (lines.length > 1) return { action: "insert", lines: lines, whole: whole == null ? undefined : cleaned };
         }
-        const judged = full && full[i] != null ? String(full[i]) : String(t);
-        return isRemovableStandalonePinyin(judged, !!flags[i]);
+        const next = mode === "add-inline" ? annotateInlineForParagraph(cleaned) : cleaned;
+        if (next === original && !reading) return { action: "none" };
+        if (whole != null) return { action: "settext", lines: [original], whole: next };
+        const cuts = pureDeletionCuts(original, next);
+        return { action: "settext", lines: [next], cuts: cuts };
     });
-    const isMarkerLine = paragraphsText.map((t, i) => {
-        if (!entireParagraphSelected(full, i, t)) {
-            return false;
-        }
-        const nextSelected = paragraphsText[i + 1];
-        const nextFull = nextSelected === undefined ? null : paragraphFullText(full, i + 1, nextSelected);
-        const next = nextFull != null ? nextFull : nextSelected;
-        const judged = full && full[i] != null ? String(full[i]) : String(t);
-        return isPinyinMarkerLine(judged, !!flags[i], next);
-    });
-    const cleanedTexts = paragraphsText.slice();
-    const rewriteWhole = new Array(paragraphsText.length).fill(false);
-    for (let i = 0; i < cleanedTexts.length; i++) {
-        if (!isMarkerLine[i] || cleanedTexts[i + 1] === undefined) {
-            continue;
-        }
-        // ReplaceTextSmart edits the selected text, so clean that string.
-        // rewriteWhole stays false: rewriting the whole paragraph leaves these spaces.
-        const pinyinLine = paragraphFullText(full, i, paragraphsText[i]) || paragraphsText[i];
-        const selectedChar = paragraphsText[i + 1];
-        let stripped = stripPartialAnnotation(pinyinLine, selectedChar);
-        if (stripped === selectedChar || /[\u2002\u2007]/.test(stripped)) {
-            const recovered = recoverUnpairedDefaultLine(selectedChar);
-            if (recovered != null) stripped = recovered;
-        }
-        cleanedTexts[i + 1] = stripped;
-    }
-    const steps = cleanedTexts.map((text, i) => {
-        // A generated Default line is deleted when its syllables are the readings of
-        // the character paragraph under it. A pasted U+200B in ordinary text is not.
-        if (isMarkerLine[i] || (mode === "remove" && standalonePinyin[i])) {
-            return { action: "delete" };
-        }
-        const original = paragraphsText[i];
-        const context = paragraphFullText(full, i, text) || text;
-        const cleaned = stripInlinePinyin(text, context);
-        const recovered = mode === "remove" ? recoverUnpairedDefaultLine(cleaned) : null;
-        const restored = recovered != null ? recovered : cleaned;
-        const wholeParagraph = rewriteWhole[i] && full ? String(full[i]) : null;
-        if (mode === "remove" || !/[\u4e00-\u9fa5]/.test(restored)) {
-            return finishTextEdit(original, restored, wholeParagraph);
-        }
-        if (mode === "add-inline") {
-            return finishTextEdit(original, annotateInlineForParagraph(restored), wholeParagraph);
-        }
-        // "add-default" (Default layout)
-        const lines = annotateDefault(restored);
-        if (wholeParagraph != null) {
-            const characterLine = lines[lines.length - 1];
-            if (lines.length > 1) {
-                return { action: "insert", lines: lines, whole: characterLine };
-            }
-            return finishTextEdit(original, characterLine, wholeParagraph);
-        }
-        return lines.length > 1 ? { action: "insert", lines: lines } : { action: "settext", lines: lines };
-    }).map(function (step, index) {
-        if (!step || step.action !== "settext" || !step.lines || step.lines.length !== 1 || typeof step.whole === "string") {
-            return step;
-        }
-        // Only inline parentheses are cut out of the runs. Alignment spaces stay on
-        // the normal replace path: cutting them by character index drops the wrong han.
-        const cuts = pureDeletionCuts(paragraphsText[index], step.lines[0]);
-        if (!cuts) {
-            return step;
-        }
-        return { action: "settext", lines: step.lines, cuts: cuts };
-    });
-    // Cleaning the character line and leaving its pinyin line in place is the bug.
-    // A partial Default line has one syllable per padded character, not per character
-    // of the plain tail. "can you" does not match that span, so it stays.
-    if (mode === "remove") {
-        for (let i = 0; i < steps.length - 1; i++) {
-            if (steps[i] && steps[i].action === "delete") {
-                continue;
-            }
-            if (!entireParagraphSelected(full, i, paragraphsText[i])) {
-                continue;
-            }
-            const nextStep = steps[i + 1];
-            const nextText = nextStep && nextStep.action === "settext" && nextStep.lines ? String(nextStep.lines[nextStep.lines.length - 1]) : "";
-            if (!nextText || nextText === String(paragraphsText[i + 1]) || /[\u2002\u2007]/.test(nextText) || !/[\u4e00-\u9fa5]/.test(nextText)) {
-                continue;
-            }
-            const pinyinLine = full && full[i] != null ? String(full[i]) : String(paragraphsText[i]);
-            const syllables = pinyinLineSyllables(pinyinLine) || pinyinLineSyllables(paragraphsText[i]);
-            const nextFull = paragraphFullText(full, i + 1, paragraphsText[i + 1]);
-            const spanHans = Math.max(
-                paddedHanCount(paragraphsText[i + 1]),
-                nextFull != null ? paddedHanCount(nextFull) : 0
-            );
-            if (syllables && spanHans && syllables.length === spanHans) {
-                steps[i] = { action: "delete" };
-            }
-        }
-    }
-    return steps;
 }
 
 // Indexes of characters removed from original to produce next. Null when next is
@@ -1416,82 +1367,17 @@ function recoverUnpairedDefaultLine(text) {
 
 // How many Chinese characters sit in the padded span. A partial Default line
 // covers only that span, not the plain tail of the same paragraph.
-function paddedHanCount(source) {
-    const text = String(source);
-    if (!/[\u2002\u2007]/.test(text)) {
-        return 0;
-    }
-    const plain = text.replace(/[\u2002\u2007]/g, "");
-    let first = -1;
-    let last = -1;
-    for (let i = 0; i < text.length; i++) {
-        const ch = text.charAt(i);
-        if (ch === "\u2002" || ch === "\u2007") {
-            if (first < 0) {
-                first = i;
-            }
-            last = i;
-        }
-    }
-    let lead = 0;
-    for (let i = 0; i < first; i++) {
-        if (text.charAt(i) !== "\u2002" && text.charAt(i) !== "\u2007") {
-            lead++;
-        }
-    }
-    let throughLast = 0;
-    for (let i = 0; i < last; i++) {
-        if (text.charAt(i) !== "\u2002" && text.charAt(i) !== "\u2007") {
-            throughLast++;
-        }
-    }
-    const starts = lead > 0 ? [lead, lead - 1] : [lead];
-    const ends = throughLast < plain.length ? [throughLast, throughLast + 1] : [throughLast];
-    for (let s = 0; s < starts.length; s++) {
-        for (let e = 0; e < ends.length; e++) {
-            const start = starts[s];
-            const end = ends[e];
-            if (end <= start) {
-                continue;
-            }
-            const slice = plain.slice(start, end);
-            const hans = slice.match(/[\u4e00-\u9fa5]/g);
-            if (!hans || hans.length < 2) {
-                continue;
-            }
-            const built = buildDefaultLine(slice, addPinyin(slice), 0);
-            if (built.lines && built.lines.length === 2 && plain.slice(0, start) + built.lines[1] + plain.slice(end) === text) {
-                return hans.length;
-            }
-        }
-    }
-    const whole = buildDefaultLine(plain, addPinyin(plain), 0);
-    if (whole.lines && whole.lines.length === 2 && whole.lines[1] === text) {
-        const hans = plain.match(/[\u4e00-\u9fa5]/g);
-        return hans ? hans.length : 0;
-    }
-    return 0;
-}
-
-function padCenter(text, width) {
-    const gap = width - stringWidth(text);
-    if (gap <= 0) {
-        return text;
-    }
-    const left = Math.floor(gap / 2);
-    return "\u2007".repeat(left) + text + "\u2007".repeat(gap - left);
-}
-
 // U+200B marks a generated Default pinyin line, including in cells, where a
 // bookmark cannot be stored. The marker alone is not enough: the line must be
 // syllables. Removing it also needs the characters on the next line, or a
 // ccPinyin bookmark in Word.
 const PINYIN_DEFAULT_MARKER = "\u200B";
+const READING_LINE_MARKER = "\u200B\u2063";
 
 function isGeneratedPinyinLine(text) {
     let body = String(text);
     if (body.charAt(0) === PINYIN_DEFAULT_MARKER) {
-        body = body.slice(1);
+        body = body.replace(/^\u200B\u2063?/, "");
     }
     if (!body || /[\u4e00-\u9fa5]/.test(body)) {
         return false;
@@ -1514,7 +1400,7 @@ function isGeneratedPinyinLine(text) {
 function pinyinLineSyllables(text) {
     let body = String(text);
     if (body.charAt(0) === PINYIN_DEFAULT_MARKER) {
-        body = body.slice(1);
+        body = body.replace(/^\u200B\u2063?/, "");
     }
     const tokens = body.split(/[ \u2002]+/);
     const syllables = [];
@@ -1595,46 +1481,16 @@ function pinyinLineMatchesReadings(text, nextText) {
 // A leading U+200B or the alignment spaces U+2002/U+2007. Ordinary spaces and
 // the fact that the words are syllables do not show that this plugin wrote the line.
 function hasGeneratedMark(text) {
-    const raw = String(text);
-    return raw.charAt(0) === PINYIN_DEFAULT_MARKER || /[\u2002\u2007]/.test(raw);
-}
-
-// A pinyin paragraph with no Chinese line under it. A ccPinyin bookmark or a
-// generated mark is required. "can you" has neither, so it stays.
-function isRemovableStandalonePinyin(text, owned) {
-    if (!isGeneratedPinyinLine(text)) {
-        return false;
-    }
-    return !!owned || hasGeneratedMark(text);
+    return String(text).startsWith(PINYIN_DEFAULT_MARKER);
 }
 
 function isPinyinMarkerLine(text, owned, nextText) {
-    if (!isGeneratedPinyinLine(text)) {
-        return false;
-    }
-    if (nextText === undefined || !/[\u4e00-\u9fa5]/.test(String(nextText))) {
-        return false;
-    }
-    if (owned) {
-        return true;
-    }
-    return pinyinLineMatchesReadings(text, nextText);
-}
-
-function isOrphanPinyinSelection(paragraphsText, ownedFlags, fullTexts) {
-    let found = false;
-    for (let i = 0; i < paragraphsText.length; i++) {
-        const fullLine = paragraphFullText(fullTexts, i, paragraphsText[i]);
-        const line = fullLine != null ? fullLine : String(paragraphsText[i]);
-        if (!isGeneratedPinyinLine(line) || !hasGeneratedMark(line)) {
-            continue;
-        }
-        if (paragraphsText[i + 1] !== undefined) {
-            continue;
-        }
-        found = true;
-    }
-    return found;
+    if (!isGeneratedPinyinLine(text) || nextText === undefined ||
+        !/[\u4e00-\u9fa5]/.test(String(nextText))) return false;
+    if (owned) return true;
+    if (!hasGeneratedMark(text) || !pinyinLineMatchesReadings(text, nextText)) return false;
+    return String(text).startsWith(READING_LINE_MARKER) ||
+        stripPartialAnnotation(text, nextText) !== String(nextText);
 }
 
 function selectionIsOrphanPinyin(text) {
@@ -1652,44 +1508,12 @@ function selectionIsOrphanPinyin(text) {
     return found;
 }
 
-// One syllable above each Chinese character. Other characters stay on the lower line.
+// Reading line: no added spaces or formatting changes in the original text.
 function buildDefaultLine(line, pinyins, idx) {
-    let pinyinLine = "";
-    let characterLine = "";
-    let hanCount = 0;
-    for (let i = 0; i < line.length; i++) {
-        const ch = line[i];
-        if (/[\u4e00-\u9fa5]/.test(ch)) {
-            const syllable = pinyins[idx] || "";
-            idx++;
-            if (!syllable) {
-                pinyinLine += " ".repeat(charWidth(ch));
-                characterLine += ch;
-                continue;
-            }
-            hanCount++;
-            const width = Math.max(stringWidth(syllable), stringWidth(ch));
-            if (pinyinLine && !/\s$/.test(pinyinLine)) {
-                pinyinLine += "\u2002";
-                characterLine += "\u2002";
-            }
-            pinyinLine += padCenter(syllable, width);
-            characterLine += padCenter(ch, width);
-        } else {
-            pinyinLine += " ".repeat(charWidth(ch));
-            characterLine += ch;
-        }
-    }
-    if (!hanCount) {
-        return { lines: [line], idx: idx };
-    }
-    // Each string becomes its own paragraph. A soft break stays in the character
-    // line and is mirrored by a space on the pinyin line, so it is not a new paragraph.
-    // Only the generated pinyin line is trimmed/marked; the character line keeps the
-    // source text (including any trailing whitespace) untouched.
+    const readings = pinyins.slice(idx).filter(Boolean);
     return {
-        lines: [PINYIN_DEFAULT_MARKER + pinyinLine.replace(/\s+$/, ""), characterLine],
-        idx: idx
+        lines: readings.length ? [READING_LINE_MARKER + readings.join(" "), line] : [line],
+        idx: idx + readings.length
     };
 }
 
@@ -1856,26 +1680,20 @@ function isPinyinSyllable(token) {
     return syllable.length > 1 && syllable.endsWith("r") && PINYIN_SYLLABLES.has(syllable.slice(0, -1));
 }
 
-function removePinyinFromPlain(text) {
-    const lines = splitParagraphs(text);
+function removePinyinFromPlain(text, keepTrailing) {
+    const lines = keepTrailing ? String(text).replace(/\r\n/g, "\n").split("\n") : splitParagraphs(text);
     const kept = [];
     for (let i = 0; i < lines.length; i++) {
-        // Same rule as buildPinyinInstructions: a leading U+200B is only a generated
-        // pinyin line when the rest is syllables and the next line has Chinese.
         if (isPinyinMarkerLine(lines[i], false, lines[i + 1])) {
-            const next = lines[i + 1];
-            if (next !== undefined) {
-                lines[i + 1] = stripPartialAnnotation(lines[i], next);
+            if (!lines[i].startsWith(READING_LINE_MARKER)) {
+                const old = lines[i + 1];
+                lines[i + 1] = stripPartialAnnotation(lines[i], old);
+                if (lines[i + 1] === old) lines[i + 1] = recoverUnpairedDefaultLine(old) || old;
             }
             continue;
         }
-        const cleaned = stripInlinePinyin(lines[i]);
-        const recovered = recoverUnpairedDefaultLine(cleaned);
-        kept.push(recovered != null ? recovered : cleaned);
+        kept.push(stripInlinePinyin(lines[i]));
     }
-    // No padding back to the original paragraph count: ReplaceTextSmart replaces the
-    // whole selection with this array, so a removed "default" pinyin paragraph should
-    // simply disappear rather than leave a blank paragraph behind.
     return kept;
 }
 
@@ -1897,6 +1715,10 @@ function reportWordPinyinResult(result) {
         showToast(tr("Success!"));
         return;
     }
+    if (result === "changed" || result === "large") {
+        showToast(tr(result === "large" ? "Select up to 2,000 cells." : "The selection changed. Please try again."), "#FFAA00", 4000);
+        return;
+    }
     if (result === "failed") {
         showToast(tr("The text could not be updated."), "#FFAA00", 4000);
         return;
@@ -1906,7 +1728,7 @@ function reportWordPinyinResult(result) {
         return;
     }
     if (result === "unchanged") {
-        showToast(tr("No pinyin was found in the selection."), "#FFAA00", 4000);
+        showToast(tr("Nothing to change in the selection."), "#FFAA00", 4000);
         return;
     }
     showToast(tr("This selection can't be changed. Select whole paragraphs or one continuous piece of text."), "#FFAA00", 4000);
@@ -1931,6 +1753,6 @@ window.Asc.plugin.onTranslate = function() {
     document.getElementById("button4").innerHTML = tr("Remove pinyin");
     document.getElementById("pinyinLayoutLabel").innerHTML = tr("Pinyin layout");
     document.getElementById("pinyinInlineLabel").innerHTML = tr("Inline");
-    document.getElementById("pinyinDefaultLabel").innerHTML = tr("Default");
+    document.getElementById("pinyinDefaultLabel").innerHTML = tr("Reading line");
     document.getElementById("operatorHints2").innerHTML = tr("Tip: Right-click after selecting text to use the function directly.");
 }

@@ -6,12 +6,19 @@
     "Remove pinyin": "移除拼音",
     "Pinyin layout": "拼音排列",
     "Inline": "括号",
-    "Default": "默认",
     "Tip: Right-click after selecting text to use the function directly.": "提示：选中文本后右键单击可直接使用功能。",
     "Success!": "成功！",
     "Please select some text first": "请先选择一些文本",
     "The text could not be updated.": "文本未能更新。",
     "This selection can't be changed. Select whole paragraphs or one continuous piece of text.": "无法修改这种选区。请选择整段，或一段连续的文字。",
     "Select the pinyin line and the Chinese text under it together.": "请同时选中拼音行和它下面的汉字。",
-    "No pinyin was found in the selection.": "选区里没有拼音。"
+    "Convert": "转换",
+    "Convert selection to Traditional": "将选区转换为繁体",
+    "Convert selection to Simplified": "将选区转换为简体",
+    "Add pinyin (Inline)": "添加拼音（行内）",
+    "Add pinyin (Reading line)": "添加拼音（读音行）",
+    "Reading line": "读音行",
+    "Select up to 2,000 cells.": "最多选择 2,000 个单元格。",
+    "The selection changed. Please try again.": "选区已更改，请重试。",
+    "Nothing to change in the selection.": "选区无需更改。"
 }

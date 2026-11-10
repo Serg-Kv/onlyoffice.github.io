@@ -1,10 +1,18 @@
 # Change Log
 
+## 1.2.1
+
+- Preserve cell boundaries when converting or removing pinyin from multiline selections.
+- Keep readings and Chinese text in the same cell, with text wrapping enabled.
+- Replace or remove a document reading line when its Chinese paragraph is selected.
+- Use a separate Reading line without adding alignment spaces to the original text.
+- Improve the store description, language listing, and localized context menu.
+
 ## 1.2.0
 
-- Add a choice of inline and above-text pinyin layouts, with panel and context-menu controls.
-- Improve pinyin insertion and removal for partial selections and multi-paragraph text.
-- Preserve surrounding text and improve handling of existing formatting and blank paragraphs.
-- Refine recognition of generated pinyin annotations and preserve ordinary parenthetical text.
-- Update the pronunciation dictionary and handling of polyphonic characters.
-- Improve operation feedback and English and Chinese interface messages.
+- Add a choice of inline pinyin or a separate reading above the text.
+- Improve handling of partial selections, formatting, blank paragraphs, and operation feedback.
+
+## 1.0.0
+
+- Initial release with Simplified and Traditional Chinese conversion and inline pinyin.

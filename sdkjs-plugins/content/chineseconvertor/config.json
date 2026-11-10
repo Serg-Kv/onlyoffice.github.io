@@ -4,12 +4,12 @@
         "zh": "简繁转换器"
     },
     "offered": "Lumi",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "guid": "asc.{beccf103-f417-49f7-9575-d1a206f60127}",
     "variations": [{
-        "description": "Convert between Simplified and Traditional Chinese",
+        "description": "Convert between Simplified and Traditional Chinese, and add or remove pinyin using Inline or Reading line layouts.",
         "descriptionLocale": {
-            "zh": "这是一个可以轻松将中文进行繁体/简体转换的插件，你也可以用插件来添加或删除拼音。"
+            "zh": "在简体和繁体中文之间转换，并以行内或独立读音行的方式添加或移除拼音。"
         },
         "url": "index.html",
         "icons": [

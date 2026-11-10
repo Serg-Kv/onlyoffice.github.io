@@ -16,13 +16,14 @@ A lightweight and practical ONLYOFFICE plugin for Chinese text conversion. It en
 
 - **Add Pinyin**
   - Automatically generates Pinyin for each Chinese character in the selected text.
-  - Pinyin is inserted inline immediately after each character in parentheses.
+  - **Inline** inserts pinyin after each character in parentheses.
+  - **Reading line** puts the readings on a separate line above the original text without padding or per-character alignment.
     - Example: 你好 → 你(nǐ)好(hǎo)
   - Useful for language learners, teaching materials, and pronunciation guidance.
 
 - **Remove Pinyin**
-  - Removes previously added inline Pinyin annotations (text inside parentheses).
-  - Restores clean Chinese text formatting.
+  - Removes generated pinyin. In documents, select the Chinese paragraph to remove or replace its reading line. For older annotations with alignment spaces, select the whole Chinese paragraph.
+  - In spreadsheets, readings and Chinese text stay within each original cell. Reading line enables wrapping; formula cells are skipped.
 
 - **Right-Click Quick Access**
   - Access conversion features directly from the context menu after selecting text.
@@ -40,9 +41,11 @@ A lightweight and practical ONLYOFFICE plugin for Chinese text conversion. It en
 _The main plugin interface displayed in the left window panel._  
 ![Left Panel](resources/store/screenshots/screenshot1.png)
 
-📋 **Context Window (Right-Click Menu)**  
-_Quick access to conversion actions directly from the context menu._  
-![Context Window](resources/store/screenshots/screenshot2.png)
+📋 **Inline layout**
+
+_Choose Inline to put readings next to each character._
+
+![Inline layout](resources/store/screenshots/screenshot2.png)
 
 ---
 
@@ -76,8 +79,9 @@ _Quick access to conversion actions directly from the context menu._
 
 - Built using the ONLYOFFICE plugin framework (`sdkjs-plugins`).
 - Uses:
-  - `Api.GetSelectedText()` for retrieving selected content.
-  - `Api.ReplaceTextSmart()` for safe text replacement.
+  - Document selection and `Api.ReplaceTextSmart()` for text edits in documents.
+  - Cell addresses and `ApiRange.SetValue()` for in-place changes to spreadsheet cells.
+- The panel and context menu are localized in English, Simplified Chinese, and Russian.
 - Plugin configuration defined in `config.json`.
 - Supports responsive side panel UI.
 

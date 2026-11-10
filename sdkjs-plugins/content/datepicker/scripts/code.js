@@ -815,7 +815,7 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
     window.Asc.scope.keepCellNumberFormat = !!keepCellNumberFormat;
 
     // Use Asc.scope - insert as actual date number
-    window.pluginAPI.callCommand(function () {
+    const result = new Promise((resolve) => window.pluginAPI.callCommand(function () {
       try {
         // Access values from Asc.scope
         var dateValue = Asc.scope.dateValue;
@@ -850,48 +850,22 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
           }
         }
 
-        function isGeneralFormat(format) {
-          return !format || String(format).toLowerCase() === "general";
+        function isDateFormat(format) {
+          // Ignore literals, escapes, locale and color tags. The inserted serial is positive,
+          // so its display normally uses the first section of the Excel format.
+          var tokens = String(format || "")
+            .replace(/"[^"]*"|\\.|_.|\*.|\[[^\]]*\]/g, "")
+            .split(";")[0];
+          return /[yd]/i.test(tokens) || (/m/i.test(tokens) && !/[hs]/i.test(tokens));
         }
 
-        // A blank General cell has no number format worth keeping.
-        function isEmptyGeneralCell(cell) {
-          var value;
-          try {
-            value = cell.GetValue();
-          } catch (e) {
-            return false;
-          }
-          if (value !== null && typeof value !== "undefined" && String(value).replace(/^\s+|\s+$/g, "") !== "") {
-            return false;
-          }
-          try {
-            return isGeneralFormat(cell.GetNumberFormat());
-          } catch (e) {
-            return false;
-          }
-        }
-
-        // Keep the existing number format. Empty General cells use the default format.
         function insertKeepingNumberFormat(cell) {
-          if (isEmptyGeneralCell(cell)) {
-            insertWithListFormat(cell);
-            return;
+          var savedFormat = cell.GetNumberFormat();
+          if (!keepCellFromatting) cell.Clear();
+          if (!keepCellFromatting || !isDateFormat(savedFormat)) {
+            if (cell.SetNumberFormat(isDateFormat(savedFormat) ? savedFormat : formatCode) === false) return false;
           }
-
-          var savedFormat = null;
-          try {
-            savedFormat = cell.GetNumberFormat();
-          } catch (e) {
-            savedFormat = null;
-          }
-          if (!keepCellFromatting) {
-            cell.Clear();
-            if (savedFormat) {
-              cell.SetNumberFormat(savedFormat);
-            }
-          }
-          cell.SetValue(dateValue);
+          return cell.SetValue(dateValue) !== false;
         }
 
         // Apply the format from the dropdown. Currency and percent cells are left
@@ -899,15 +873,12 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
         function insertWithListFormat(cell) {
           if (keepCellFromatting) {
             if (shouldPreserveFormat(cell)) {
-              return;
+              return true;
             }
-            cell.SetNumberFormat(formatCode);
-            cell.SetValue(dateValue);
           } else {
             cell.Clear();
-            cell.SetNumberFormat(formatCode);
-            cell.SetValue(dateValue);
           }
+          return cell.SetNumberFormat(formatCode) !== false && cell.SetValue(dateValue) !== false;
         }
 
         function insertIntoCell(cell) {
@@ -915,9 +886,9 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
             return;
           }
           if (keepCellNumberFormat) {
-            insertKeepingNumberFormat(cell);
+            return insertKeepingNumberFormat(cell);
           } else {
-            insertWithListFormat(cell);
+            return insertWithListFormat(cell);
           }
         }
 
@@ -925,28 +896,28 @@ function insertDateValue(formattedDate, selectedDate, selectedFormat, keepCellFr
         if (!oSelection) {
           var oActiveCell = oWorksheet.GetActiveCell();
           if (oActiveCell) {
-            insertIntoCell(oActiveCell);
-            return true;
+            return insertIntoCell(oActiveCell);
           }
           return false;
         }
 
+        var ok = true;
         oSelection.ForEach(function (cell) {
-          insertIntoCell(cell);
+          if (ok && !insertIntoCell(cell)) ok = false;
         });
-        return true;
+        return ok;
       } catch (e) {
         return false;
       }
-    });
+    }, false, true, resolve));
 
-    // Clean up the scope after use
+    // callCommand serializes Asc.scope before dispatch.
     delete window.Asc.scope.dateValue;
     delete window.Asc.scope.formatCode;
     delete window.Asc.scope.keepCellFromatting;
     delete window.Asc.scope.keepCellNumberFormat;
 
-    return true;
+    return result;
   } catch (e) {
     console.error("Error in insertDateValue:", e);
     // Clean up on error too
@@ -1041,13 +1012,6 @@ function initializeDatePicker() {
     calendar.updateInput();
   });
 
-  const keepCellNumberFormatEl = document.getElementById("keepNumberFormat");
-  if (keepCellNumberFormatEl) {
-    keepCellNumberFormatEl.addEventListener("change", () => {
-      formatSelect.disabled = keepCellNumberFormatEl.checked;
-    });
-  }
-
   input.addEventListener("datechange", () =>
     updateFormatOptions(calendar.getDate())
   );
@@ -1071,15 +1035,15 @@ function initializeDatePicker() {
     showLoadingScreen(tr("Inserting date..."));
 
     // Use requestAnimationFrame to ensure loading screen is visible
-    requestAnimationFrame(() => {
+    requestAnimationFrame(async () => {
       try {
         const formattedDate = calendar.formatDate(selectedDate, currentFormat);
         const keepCellFromatting = document.getElementById("keepStyles").checked;
         const keepCellNumberFormatEl = document.getElementById("keepNumberFormat");
         const keepCellNumberFormat = !!(keepCellNumberFormatEl && keepCellNumberFormatEl.checked);
 
-        // Insert the date (synchronous operation)
-        insertDateValue(formattedDate, selectedDate, currentFormat, keepCellFromatting, keepCellNumberFormat);
+        const inserted = await insertDateValue(formattedDate, selectedDate, currentFormat, keepCellFromatting, keepCellNumberFormat);
+        if (!inserted) throw new Error("Editor rejected date insertion.");
 
         // Success! Reset to today's date
         const todaysDate = new Date();
@@ -1093,8 +1057,7 @@ function initializeDatePicker() {
         // Re-enable controls and hide loading after a brief delay for visual feedback
         requestAnimationFrame(() => {
           insertBtn.disabled = false;
-          const keepCellNumberFormatEl = document.getElementById("keepNumberFormat");
-          formatSelect.disabled = !!(keepCellNumberFormatEl && keepCellNumberFormatEl.checked);
+          formatSelect.disabled = false;
           hideLoadingScreen();
 
           if (mainContent) {

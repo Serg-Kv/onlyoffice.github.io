@@ -56,6 +56,7 @@ const PluginCard = {
     backup: false,
     LANGUAGES: [
         ['cs-CZ', 'cs', 'Czech'],
+        ['cs-CS', 'cs', 'Czech'],
         ['de-DE', 'de', 'German'],
         ['es-ES', 'es', 'Spanish'],
         ['fr-FR', 'fr', 'French'],
@@ -67,6 +68,11 @@ const PluginCard = {
         ['ru-RU', 'ru', 'Russian'],
         ['si-SI', 'si', 'Sinhala'],
         ['uk-UA', 'uk', 'Ukrainian'],
+        ['sq-AL', 'sq', 'Albanian'],
+        ['sr-RS', 'sr', 'Serbian'],
+        ['sr-Latn-RS', 'sr', 'Serbian'],
+        ['sr-Latn', 'sr', 'Serbian'],
+        ['zh-CN', 'zh', 'Chinese'],
         ['zh-ZH', 'zh', 'Chinese']
     ],
 

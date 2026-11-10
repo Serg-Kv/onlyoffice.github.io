@@ -1,22 +1,11 @@
-Overview
-Inserting formatted dates into spreadsheet cells with a calendar interface.
+# Date Picker
 
-Installation
-Install the Insert QR Plugin from the plugin marketplace.
-Usage
-Activate the DatePicker:
+Insert a date into one or more spreadsheet cells using a calendar.
 
-Go to the plugin tab.
-Activate the DatePicker plugin in the "Plugins" section
-Select Cells:
+1. Install **Date Picker** from the plugin store and open it from the Plugins tab.
+2. Select the destination cell or range, then choose a date and a date format.
+3. Click **Insert date**.
 
-Select the cells area where you would like to print the formatted date.
-Select the date:
+**Keep cell number format** preserves an existing date format, including custom formats such as `dddd`. Cells with incompatible formats such as General, Number, or Text use the selected date format, regardless of their previous contents. Dates are stored as numbers, not as formatted text.
 
-Click the "Select the date" option to select desired date from the calendar.
-Select the format:
-
-Click the "Select format" option to format the previously selected date.
-Print the date:
-
-Print the formatted date across the selected cell area.
+**Keep cell formatting** controls visual formatting independently. When only this option is enabled, cells formatted as currency or percentage are skipped. When **Keep cell number format** is also enabled, those non-date formats use the selected date format.
