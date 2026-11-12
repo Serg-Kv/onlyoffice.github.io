@@ -1,5 +1,8 @@
 # Change Log
 
+## 1.2.2
+- Fix removal of reading-line pinyin in documents when paragraph text includes a paragraph terminator.
+
 ## 1.2.1
 
 - Preserve cell boundaries when converting or removing pinyin from multiline selections.

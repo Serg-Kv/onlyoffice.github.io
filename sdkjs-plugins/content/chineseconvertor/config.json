@@ -4,59 +4,89 @@
         "zh": "简繁转换器"
     },
     "offered": "Lumi",
-    "version": "1.2.1",
+    "version": "1.2.2",
     "guid": "asc.{beccf103-f417-49f7-9575-d1a206f60127}",
-    "variations": [{
-        "description": "Convert between Simplified and Traditional Chinese, and add or remove pinyin using Inline or Reading line layouts.",
-        "descriptionLocale": {
-            "zh": "在简体和繁体中文之间转换，并以行内或独立读音行的方式添加或移除拼音。"
-        },
-        "url": "index.html",
-        "icons": [
-            "resources/%theme-type%(dark|light)/%scale%(default).%extension%(png)"
-        ],
-        "icons2": [
-            {
-                "style": "light",
-                "100%": { "normal": "resources/light/icon.png" },
-                "125%": { "normal": "resources/light/icon@1.25x.png" },
-                "150%": { "normal": "resources/light/icon@1.5x.png" },
-                "175%": { "normal": "resources/light/icon@1.75x.png" },
-                "200%": { "normal": "resources/light/icon@2x.png" }
+    "variations": [
+        {
+            "description": "Convert between Simplified and Traditional Chinese, and add or remove pinyin using Inline or Reading line layouts.",
+            "descriptionLocale": {
+                "zh": "在简体和繁体中文之间转换，并以行内或独立读音行的方式添加或移除拼音。"
             },
-            {
-                "style": "dark",
-                "100%": { "normal": "resources/dark/icon.png" },
-                "125%": { "normal": "resources/dark/icon@1.25x.png" },
-                "150%": { "normal": "resources/dark/icon@1.5x.png" },
-                "175%": { "normal": "resources/dark/icon@1.75x.png" },
-                "200%": { "normal": "resources/dark/icon@2x.png" }
-            }
-        ],
-        "store": {
-            "background": {
-                "light" : "#F2EDE7",
-                "dark" : "#F2EDE7"
+            "url": "index.html",
+            "icons": [
+                "resources/%theme-type%(dark|light)/%scale%(default).%extension%(png)"
+            ],
+            "icons2": [
+                {
+                    "style": "light",
+                    "100%": {
+                        "normal": "resources/light/icon.png"
+                    },
+                    "125%": {
+                        "normal": "resources/light/icon@1.25x.png"
+                    },
+                    "150%": {
+                        "normal": "resources/light/icon@1.5x.png"
+                    },
+                    "175%": {
+                        "normal": "resources/light/icon@1.75x.png"
+                    },
+                    "200%": {
+                        "normal": "resources/light/icon@2x.png"
+                    }
+                },
+                {
+                    "style": "dark",
+                    "100%": {
+                        "normal": "resources/dark/icon.png"
+                    },
+                    "125%": {
+                        "normal": "resources/dark/icon@1.25x.png"
+                    },
+                    "150%": {
+                        "normal": "resources/dark/icon@1.5x.png"
+                    },
+                    "175%": {
+                        "normal": "resources/dark/icon@1.75x.png"
+                    },
+                    "200%": {
+                        "normal": "resources/dark/icon@2x.png"
+                    }
+                }
+            ],
+            "store": {
+                "background": {
+                    "light": "#F2EDE7",
+                    "dark": "#F2EDE7"
+                },
+                "screenshots": [
+                    "resources/store/screenshots/screenshot1.png",
+                    "resources/store/screenshots/screenshot2.png"
+                ],
+                "icons": {
+                    "light": "resources/store/icons",
+                    "dark": "resources/store/icons"
+                },
+                "categories": [
+                    "specAbilities"
+                ]
             },
-            "screenshots": ["resources/store/screenshots/screenshot1.png", "resources/store/screenshots/screenshot2.png"],
-            "icons": {
-                "light": "resources/store/icons",
-                "dark": "resources/store/icons"
-            },
-            "categories": ["specAbilities"]
-        },
-        "isViewer": false,
-        "isVisual": false,
-        "isModal": false,
-        "isInsideMode": true,
-        "EditorsSupport": ["word", "cell"],
-        "initDataType": "none",
-        "initData": "",
-        "buttons": [],
-        "events": [
-            "onContextMenuShow",
-            "onContextMenuClick"
-        ],
-        "type": "panel"
-    }]
+            "isViewer": false,
+            "isVisual": false,
+            "isModal": false,
+            "isInsideMode": true,
+            "EditorsSupport": [
+                "word",
+                "cell"
+            ],
+            "initDataType": "none",
+            "initData": "",
+            "buttons": [],
+            "events": [
+                "onContextMenuShow",
+                "onContextMenuClick"
+            ],
+            "type": "panel"
+        }
+    ]
 }

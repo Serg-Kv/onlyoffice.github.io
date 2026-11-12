@@ -1375,7 +1375,8 @@ const PINYIN_DEFAULT_MARKER = "\u200B";
 const READING_LINE_MARKER = "\u200B\u2063";
 
 function isGeneratedPinyinLine(text) {
-    let body = String(text);
+    // ApiParagraph.GetText includes the paragraph terminator.
+    let body = String(text).replace(/\r?\n$/, "");
     if (body.charAt(0) === PINYIN_DEFAULT_MARKER) {
         body = body.replace(/^\u200B\u2063?/, "");
     }
@@ -1398,7 +1399,8 @@ function isGeneratedPinyinLine(text) {
 }
 
 function pinyinLineSyllables(text) {
-    let body = String(text);
+    // ApiParagraph.GetText includes the paragraph terminator.
+    let body = String(text).replace(/\r?\n$/, "");
     if (body.charAt(0) === PINYIN_DEFAULT_MARKER) {
         body = body.replace(/^\u200B\u2063?/, "");
     }
